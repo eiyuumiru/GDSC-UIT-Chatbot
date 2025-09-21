@@ -11,7 +11,7 @@ from langchain_groq import ChatGroq
 import os
 
 SYSTEM_INSTRUCTIONS = (
-    "Bạn là trợ lý trả lời về Chương Trình Đào Tạo UIT (Khóa 2025).\n"
+    "Bạn là một chatbot trả lời về chương trình đào tạo của Trường Đại học Công nghệ thông tin - Đại học Quốc Gia TP. Hồ Chí Minh (viết tắt là UIT).\n"
     "Nguyên tắc:\n"
     "• Suy luận từng bước một cách logic trong tâm trí, nhưng chỉ trả lời kết quả cuối cùng.\n"
     "• Chỉ dùng thông tin đã được cung cấp trong dữ liệu tham chiếu và lịch sử hội thoại.\n"
@@ -100,7 +100,7 @@ class LLMService(ContextFormatter):
     def query_or_response(self, state: MessagesState):
         planner_system = SystemMessage(
             content=(
-                "Bạn là trợ lý phân tích câu hỏi về CTĐT UIT. "
+                "Bạn là chatbot chuyên trả lời về chương trình đào tạo của trường UIT. "
                 "Suy luận trong tâm trí: "
                 "1. Câu hỏi này cần thông tin cụ thể nào? "
                 "2. Lịch sử hội thoại có đủ ngữ cảnh không? "
