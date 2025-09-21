@@ -6,8 +6,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_core.prompts import ChatPromptTemplate
 from langgraph.checkpoint.memory import MemorySaver
-from .FullChain import retrieve, _ensure_loaded, ContextFormatter
-from .EmbeddingManager import get_encoder
+from .FullChain import ContextFormatter, RetrieverService, make_retrieve_tool
 from langchain_groq import ChatGroq
 import os
 
@@ -82,24 +81,20 @@ def _format_recent_history(state: MessagesState, max_chars: int = 2000, max_turn
     return "\n".join(joined)
 
 class LLMService(ContextFormatter):
-    def __init__(self, groq_api_key: Optional[str] = None, model: str = "llama-3.3-70b-versatile", temperature: float = 0.2, max_tokens: Optional[int] = None):
-        _ensure_loaded()
+    def __init__(self, groq_api_key: str, model: str = "llama-3.3-70b-versatile", temperature: float = 0.2, max_tokens: Optional[int] = None, retriever_config: Optional[Dict[str, Any]] = None):
         super().__init__()
-        self.llm = self.LLM(groq_api_key=groq_api_key, model=model, temperature=temperature, max_tokens=max_tokens)
-        self.encoder = self.Encoder()
-        self.memory = self.Memory()
-        self.graph = self.Graph()
+        self.llm = self.__init_LLM(groq_api_key=groq_api_key, model=model, temperature=temperature, max_tokens=max_tokens)
+        self.memory = self.__init_Memory()
+        self._retriever_service = RetrieverService(**(retriever_config or {}))
+        self._retrieve_tool = make_retrieve_tool(self._retriever_service)
+        self.graph = self.__init_Graph()
 
-    def LLM(self, groq_api_key: Optional[str] = None, model: str = "llama-3.3-70b-versatile", temperature: float = 0.2, max_tokens: Optional[int] = None) -> ChatGroq:
-        key = groq_api_key or os.getenv("GROQ_API_KEY")
-        if not key:
-            raise ValueError("Thiếu GROQ_API_KEY")
+    def __init_LLM(self, groq_api_key: str, model: str = "llama-3.3-70b-versatile", temperature: float = 0.2, max_tokens: Optional[int] = None) -> ChatGroq:
+        if groq_api_key:
+            os.environ["GROQ_API_KEY"] = groq_api_key
         return ChatGroq(model=model, temperature=temperature, max_tokens=max_tokens)
-    
-    def Encoder(self):
-        return get_encoder()
-    
-    def Memory(self):
+
+    def __init_Memory(self):
         return MemorySaver()
     
     def query_or_response(self, state: MessagesState):
@@ -114,7 +109,7 @@ class LLMService(ContextFormatter):
                 "Quyết định ngay, không giải thích quá trình."
             )
         )
-        llm_with_tools = self.llm.bind_tools([retrieve])
+        llm_with_tools = self.llm.bind_tools([self._retrieve_tool])
         response = llm_with_tools.invoke([planner_system] + state["messages"])
         return {"messages": [response]}
     
@@ -126,8 +121,8 @@ class LLMService(ContextFormatter):
         out = self.llm.invoke(messages)
         return {"messages": [out]}
 
-    def Graph(self):
-        tools = ToolNode([retrieve])
+    def __init_Graph(self):
+        tools = ToolNode([self._retrieve_tool])
         graph_builder = StateGraph(MessagesState)
         graph_builder.add_node("query_or_response", self.query_or_response)
         graph_builder.add_node("tools", tools)
@@ -138,6 +133,6 @@ class LLMService(ContextFormatter):
         graph_builder.add_edge("generate_with_context", END)
         return graph_builder.compile(checkpointer=self.memory)
 
-    def __call__(self, question: str, thread_id: str = "default_session", topk: Optional[int] = None) -> Any:
+    def __call__(self, question: str, thread_id: str = "default_session") -> Any:
         config = {"configurable": {"thread_id": thread_id}}
-        return self.graph.invoke({"messages": [HumanMessage(content=question)]}, config=config)
+        return self.graph.invoke({"messages": [HumanMessage(content=question)]}, config=config)  # type: ignore

@@ -1,167 +1,149 @@
 from __future__ import annotations
-from typing import Dict, Any, List
-from langchain.schema import Document
+from typing import Dict, Any, List, Optional
 import re
+import time
+import logging
 from .Loaders import load_markdown
 from .Splitters import split_markdown
 from .EmbeddingManager import get_encoder
 from .Vectors import build_index as build_vec, load_index as load_vec
-from .Retriever import docs_from_chroma, make_hybrid_retriever, CrossEncoderReranker
-from langchain_core.tools import tool
+from .Retriever import docs_from_chroma, make_hybrid_retriever
+from langchain.retrievers.document_compressors import CrossEncoderReranker
+from langchain_core.tools import tool, BaseTool
+from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 
-_DB = None
-_ENC = None
-_CHUNKS_FOR_BM25: List[Document] | None = None
-_RERANKER: CrossEncoderReranker | None = None
+logger = logging.getLogger(__name__)
 
-def _refresh_caches(db=None, enc=None):
-    global _DB, _ENC, _CHUNKS_FOR_BM25, _RERANKER
-    if enc is not None:
-        _ENC = enc
-    if db is not None:
-        _DB = db
-        _CHUNKS_FOR_BM25 = None
-    if _RERANKER is None:
-        _RERANKER = CrossEncoderReranker()
+class RetrieverService:
+    def __init__(self, model_name = "jinaai/jina-reranker-v2-base-multilingual", top_n: int = 6, weights: list[float] = [0.3, 0.6, 0.1]):
+        self._ENC = self.__init_Encoder()
+        self._DB = self.__init_DB()
+        self._CHUNKS_FOR_BM25 = self.__init_ChunksForBM25()
+        self._RERANKER: CrossEncoderReranker = self.__init_Reranker(model_name=model_name, top_n=top_n)
+        self.hybrid_retriever = self.__init_HybridRetriever(weights=weights, k=top_n)
+        self.top_n = top_n
 
-def _ensure_loaded():
-    global _DB, _ENC, _CHUNKS_FOR_BM25, _RERANKER
-    if _ENC is None:
+    def __init_DB(self):
         try:
-            _ENC = get_encoder(batch_size=64)
-        except Exception as e:
-            raise RuntimeError(f"Failed to load encoder: {e}")
-    if _DB is None:
-        try:
-            _DB = load_vec(_ENC)
+            return load_vec(encoder=self._ENC)
         except Exception as e:
             raise RuntimeError(f"Failed to load vector DB: {e}")
-    if _CHUNKS_FOR_BM25 is None:
+
+    def __init_Encoder(self):
         try:
-            _CHUNKS_FOR_BM25 = docs_from_chroma(_DB)
+            return get_encoder(batch_size=64)
+        except Exception as e:
+            raise RuntimeError(f"Failed to load encoder: {e}")
+
+    def __init_ChunksForBM25(self):
+        try:
+            return docs_from_chroma(self._DB)
         except Exception as e:
             raise RuntimeError(f"Failed to load BM25 chunks: {e}")
-    if _RERANKER is None:
+
+    def __init_Reranker(self, model_name: str = "jinaai/jina-reranker-v2-base-multilingual", top_n: int = 6) -> CrossEncoderReranker:
         try:
-            _RERANKER = CrossEncoderReranker()
+            device = "cpu"
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    device = "cuda"
+            except Exception:
+                device = "cpu"
+            logger.info("Initializing CrossEncoderReranker model=%s device=%s top_n=%s", model_name, device, top_n)
+            model = HuggingFaceCrossEncoder(model_name=model_name, model_kwargs={"trust_remote_code": True, "device": device})
+            return CrossEncoderReranker(model=model, top_n=top_n)
         except Exception as e:
             raise RuntimeError(f"Failed to initialize reranker: {e}")
-
-def build_index(
-    data_dir: str = "backend/dataset",
-    percentile: int = 92,
-    enforce_max: int = 850,
-    overlap: int = 120,
-    batch_size: int = 64,
-    min_chunk_chars: int = 320,
-    soft_merge_chars: int = 160,
-    prefix_headers: bool = True,
-    clear_existing: bool = True,
-) -> Dict[str, Any]:
     
-    print("Phase 1/3: load docs ...", flush=True)
-    docs = load_markdown(data_dir)
-    print(f"Docs: {len(docs)}", flush=True)
-    print("Phase 2/3: semantic split ...", flush=True)
-    enc = get_encoder(batch_size=batch_size)
-    chunks = split_markdown(
-        docs,
-        encoder=enc,
-        percentile=percentile,
-        enforce_max=enforce_max,
-        overlap=overlap,
-        show_progress=True,
-        min_chunk_chars=min_chunk_chars,
-        soft_merge_chars=soft_merge_chars,
-        prefix_headers=prefix_headers,
-    )
-    print(f"Chunks: {len(chunks)}", flush=True)
-    print("Phase 3/3: build index ...", flush=True)
-    db = build_vec(chunks, enc, batch_size=batch_size, show_progress=True, clear_existing=clear_existing)
-    _refresh_caches(db=db, enc=enc)
-    count = getattr(db._collection, "count")() if hasattr(db, "_collection") else None
-    return {"docs": len(docs), "chunks": len(chunks), "count": count}
+    def __init_HybridRetriever(self, weights: list[float] = [0.3, 0.6, 0.1], k: int = 6):
+        try:
+            return make_hybrid_retriever(self._CHUNKS_FOR_BM25, self._DB, k=k, weights=weights)
+        except Exception as e:
+            raise RuntimeError(f"Failed to initialize hybrid retriever: {e}")
 
-def search(query: str, k: int = 4, mode: str = "dense") -> List[Document]:
-    _ensure_loaded()
-    if _CHUNKS_FOR_BM25 is None:
-        raise RuntimeError("BM25 chunks not loaded")
-    if _DB is None:
-        raise RuntimeError("Vector DB not loaded")
-    if mode == "hybrid":
-        retriever = make_hybrid_retriever(_CHUNKS_FOR_BM25, _DB, k=k, weights=(0.6, 0.4))
-        pool = max(40, k * 4)
-        candidates = retriever.gather(query, fetch_k=pool)
-        return [cand.doc for cand in candidates[:k]]
-    ret = _DB.as_retriever(search_kwargs={"k": k})
-    return ret.invoke(query)
+    def _retrieve_impl(self, query: str) -> tuple[str, List[Dict[str, Any]]]:
+        t0 = time.perf_counter()
+        logger.info("[retrieve] start query='%s' top_n=%s", query, self.top_n)
+        k_init = max(60, self.top_n * 6)
+        try:
+            candidate_docs = self.hybrid_retriever.invoke(query)
+        except Exception as e:
+            logger.exception("[retrieve] hybrid retriever failed: %s", e)
+            candidate_docs = []
+        if not candidate_docs:
+            try:
+                candidate_docs = self._DB.as_retriever(search_kwargs={"k": k_init}).invoke(query)
+            except Exception as e:
+                logger.exception("[retrieve] vector store fallback failed: %s", e)
+                candidate_docs = []
 
-@tool(response_format='content_and_artifact')
-def retrieve(query: str) -> tuple[str, List[Dict[str, Any]]]:
-    """Retrieve information about UIT's academic curriculum (majors, courses, credits, and regulations) from the internal vector database."""
-    _ensure_loaded()
-    print("Calling retrieve tool", flush=True)
-    k = 6
-    if _CHUNKS_FOR_BM25 is None:
-        raise RuntimeError("BM25 chunks not loaded")
-    if _RERANKER is None:
-        raise RuntimeError("Reranker not initialized")
-    k_init = max(60, k * 6)
-    weights = (0.3, 0.7)
-    retriever = make_hybrid_retriever(
-        _CHUNKS_FOR_BM25,
-        _DB,
-        k=k,
-        weights=weights,
-        pool_multiplier=5.0,
-        term_weight=0.4,
-    )
-    candidates = retriever.gather(query, fetch_k=k_init)
-    candidate_docs = [cand.doc for cand in candidates]
+        t1 = time.perf_counter()
+        try:
+            ranked_docs = self._RERANKER.compress_documents(documents=candidate_docs, query=query)
+            ranked_docs = ranked_docs[:self.top_n] if ranked_docs else candidate_docs[:self.top_n]
+        except Exception as e:
+            logger.exception("[retrieve] reranker failed, using top-k candidates: %s", e)
+            ranked_docs = candidate_docs[:self.top_n]
+        t2 = time.perf_counter()
+        logger.info("[retrieve] done candidates=%s ranked=%s retrieve=%.3fs rerank=%.3fs", len(candidate_docs), len(ranked_docs), t1 - t0, t2 - t1)
 
-    if not candidates:
-        fallback = _DB.as_retriever(search_kwargs={"k": k_init}).invoke(query)
-        candidate_docs = list(fallback)
-        ranked = _RERANKER.rerank(query, candidate_docs, topn=k)
-    else:
-        ranked = _RERANKER.rerank(query, candidates, topn=k)
-        if not ranked and candidate_docs:
-            ranked = _RERANKER.rerank(query, candidate_docs, topn=k)
+        # # Debug logging
+        # for idx, doc in enumerate(ranked_docs, start=1):
+        #     chunk_text = (doc.page_content or "").strip().replace("\n", " ")
+        #     if len(chunk_text) > 300:
+        #         chunk_text = chunk_text[:300].rstrip() + "..."
+        #     source = doc.metadata.get("source", "")
+        #     print(f"[retrieve] #{idx} source={source} chunk={chunk_text}", flush=True)
 
-    if not ranked:
-        ranked = [(doc, 0.0) for doc in candidate_docs[:k]]
+        results: List[Dict[str, Any]] = [
+            {"source": doc.metadata.get("source", ""), "content": doc.page_content}
+            for doc in ranked_docs
+        ]
 
-    print(f"[retrieve] query: {query}", flush=True)
-    print(f"[retrieve] top_k: {k} | initial_k: {k_init} | candidates: {len(candidate_docs)}", flush=True)
-    for idx, (doc, score) in enumerate(ranked, start=1):
-        chunk_text = (doc.page_content or "").strip().replace("\n", " ")
-        if len(chunk_text) > 300:
-            chunk_text = chunk_text[:300].rstrip() + "..."
-        source = doc.metadata.get("source", "")
-        rerank_info = (doc.metadata or {}).get("_rerank", {})
-        extra = ""
-        if rerank_info:
-            extra = (
-                f" | ce={float(rerank_info.get('cross_encoder', 0.0)):.3f}"
-                f" | coarse={float(rerank_info.get('coarse_norm', 0.0)):.3f}"
-                f" | hits={rerank_info.get('term_hits', 0)}"
-            )
-        print(
-            f"[retrieve] #{idx} score={float(score):.4f} source={source}{extra} chunk={chunk_text}",
-            flush=True,
-        )
+        return query, results
 
-    results = []
-    for doc, score in ranked:
-        record = {
-            "source": doc.metadata.get("source", ""),
-            "content": doc.page_content,
-        }
-        rerank_info = (doc.metadata or {}).get("_rerank")
-        if rerank_info:
-            record["rerank"] = rerank_info
-        results.append(record)
-    return query, results
+def make_retrieve_tool(svc: RetrieverService) -> BaseTool:
+    @tool(response_format="content_and_artifact")
+    def _retrieve(query: str) -> tuple[str, List[Dict[str, Any]]]:
+        """Retrieve information about UIT's academic curriculum (majors, courses, credits, and regulations) from the internal vector database."""
+        return svc._retrieve_impl(query)
+    return _retrieve
+
+
+# def build_index(
+#         data_dir: str = "backend/dataset",
+#         percentile: int = 92,
+#         enforce_max: int = 850,
+#         overlap: int = 120,
+#         batch_size: int = 64,
+#         min_chunk_chars: int = 320,
+#         soft_merge_chars: int = 160,
+#         prefix_headers: bool = True,
+#         clear_existing: bool = True,
+#     ) -> Dict[str, Any]:
+#         print("Phase 1/3: load docs ...", flush=True)
+#         docs = load_markdown(data_dir)
+#         print(f"Docs: {len(docs)}", flush=True)
+#         print("Phase 2/3: semantic split ...", flush=True)
+#         enc = get_encoder(batch_size=batch_size)
+#         chunks = split_markdown(
+#             docs,
+#             encoder=enc,
+#             percentile=percentile,
+#             enforce_max=enforce_max,
+#             overlap=overlap,
+#             show_progress=True,
+#             min_chunk_chars=min_chunk_chars,
+#             soft_merge_chars=soft_merge_chars,
+#             prefix_headers=prefix_headers,
+#         )
+#         print(f"Chunks: {len(chunks)}", flush=True)
+#         print("Phase 3/3: build index ...", flush=True)
+#         db = build_vec(chunks, enc, batch_size=batch_size, show_progress=True, clear_existing=clear_existing)
+#         self._resolve_caches(db=db, enc=enc)
+#         count = getattr(db._collection, "count")() if hasattr(db, "_collection") else None
+#         return {"docs": len(docs), "chunks": len(chunks), "count": count}
 
 class ContextFormatter:
     def __init__(self, max_chars: int = 8000, max_items: int = 6):

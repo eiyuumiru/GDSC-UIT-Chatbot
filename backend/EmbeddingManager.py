@@ -36,7 +36,6 @@ def get_encoder(
     model_name: str = DEFAULT_MODEL,
     batch_size: int = 32,
     device: str = "cuda",
-    show_tqdm: bool = True,
 ) -> Embeddings:
     return HuggingFaceEmbeddings(
         model_name=model_name,

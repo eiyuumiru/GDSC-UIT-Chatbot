@@ -1,4 +1,5 @@
 import os
+import logging
 import sys
 import uuid
 from dotenv import load_dotenv
@@ -9,6 +10,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 from backend.LLMService import LLMService
+# Configure console logging so backend INFO/DEBUG are visible in terminal
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 st.set_page_config(page_title="UIT RAG Chatbot", page_icon="🎓", layout="centered")
 st.header("🎓 UIT RAG Chatbot")
