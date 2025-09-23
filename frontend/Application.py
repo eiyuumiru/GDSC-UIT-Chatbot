@@ -56,7 +56,7 @@ temperature = 0.5
 
 @st.cache_resource(show_spinner=False)
 def make_chain(groq_api_key: str, model: str, temperature: float) -> LLMService:
-    return LLMService(groq_api_key=groq_api_key, model=model, temperature=temperature)
+    return LLMService(groq_api_key=groq_api_key, model=model, temperature=temperature, retriever_config={"model_name": "namdp-ptit/ViRanker"})
 
 qa = make_chain(
     groq_api_key=st.session_state["GROQ_API_KEY"],

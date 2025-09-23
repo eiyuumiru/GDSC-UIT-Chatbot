@@ -15,13 +15,13 @@ from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 logger = logging.getLogger(__name__)
 
 class RetrieverService:
-    def __init__(self, model_name = "jinaai/jina-reranker-v2-base-multilingual", top_n: int = 6, weights: list[float] = [0.3, 0.6, 0.1]):
+    def __init__(self, model_name = "jinaai/jina-reranker-v2-base-multilingual", top_n: int = 3, weights: list[float] = [0.3, 0.6, 0.1]):
+        self.top_n = top_n
         self._ENC = self.__init_Encoder()
         self._DB = self.__init_DB()
         self._CHUNKS_FOR_BM25 = self.__init_ChunksForBM25()
         self._RERANKER: CrossEncoderReranker = self.__init_Reranker(model_name=model_name, top_n=top_n)
         self.hybrid_retriever = self.__init_HybridRetriever(weights=weights, k=top_n)
-        self.top_n = top_n
 
     def __init_DB(self):
         try:
@@ -41,7 +41,7 @@ class RetrieverService:
         except Exception as e:
             raise RuntimeError(f"Failed to load BM25 chunks: {e}")
 
-    def __init_Reranker(self, model_name: str = "jinaai/jina-reranker-v2-base-multilingual", top_n: int = 6) -> CrossEncoderReranker:
+    def __init_Reranker(self, model_name: str = "jinaai/jina-reranker-v2-base-multilingual", top_n: int = 3) -> CrossEncoderReranker:
         try:
             device = "cpu"
             try:
@@ -87,6 +87,7 @@ class RetrieverService:
             ranked_docs = candidate_docs[:self.top_n]
         t2 = time.perf_counter()
         logger.info("[retrieve] done candidates=%s ranked=%s retrieve=%.3fs rerank=%.3fs", len(candidate_docs), len(ranked_docs), t1 - t0, t2 - t1)
+        logger.info("[retrieve] ranked_docs sample: %s", ranked_docs)
 
         # # Debug logging
         # for idx, doc in enumerate(ranked_docs, start=1):
