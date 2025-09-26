@@ -50,8 +50,15 @@ def split_markdown(
     prefix_headers: bool = True,
 ) -> List[Document]:
     header_split = MarkdownHeaderTextSplitter(headers_to_split_on=list(headers), strip_headers=False)
-    sections: List[Document] = []
+    table_docs: List[Document] = []
+    regular_docs: List[Document] = []
     for d in docs:
+        if (d.metadata or {}).get("is_table"):
+            table_docs.append(d)
+        else:
+            regular_docs.append(d)
+    sections: List[Document] = []
+    for d in regular_docs:
         source_path = str((d.metadata or {}).get("source", "")).replace("\\", "/").lower()
         if source_path.endswith("courses.md"):
             course_records = parse_course_catalog(d.page_content)
@@ -157,11 +164,20 @@ def split_markdown(
                 chunks.append(Document(page_content=text, metadata=meta_part))
             bar2.update(1)
         bar2.close()
-        return chunks
-
-    for content, meta, header_path in records:
-        text = f"{header_path}\n\n{content}" if prefix_headers and header_path else content
-        meta_part = dict(meta)
-        meta_part["chunk_index"] = meta["chunk_base"]
-        chunks.append(Document(page_content=text, metadata=meta_part))
+    else:
+        for content, meta, header_path in records:
+            text = f"{header_path}\n\n{content}" if prefix_headers and header_path else content
+            meta_part = dict(meta)
+            meta_part["chunk_index"] = meta["chunk_base"]
+            chunks.append(Document(page_content=text, metadata=meta_part))
+    if table_docs:
+        prepared_tables: List[Document] = []
+        for table_idx, table_doc in enumerate(table_docs):
+            table_meta = dict(table_doc.metadata or {})
+            table_meta.setdefault("chunk_index", f"table-{table_idx}")
+            content = table_doc.page_content or ""
+            table_meta["chunk_size"] = len(content)
+            table_doc.metadata = table_meta
+            prepared_tables.append(table_doc)
+        chunks.extend(prepared_tables)
     return chunks

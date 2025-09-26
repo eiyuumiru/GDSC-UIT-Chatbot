@@ -1,6 +1,8 @@
 from typing import List
 from langchain.schema import Document
 from langchain_chroma import Chroma
+from langchain_community.vectorstores.utils import filter_complex_metadata
+
 from tqdm import tqdm
 import gc
 
@@ -49,7 +51,12 @@ def build_index(
 
     for i in range(0, total, batch_size):
         batch = chunks[i : i + batch_size]
-        db.add_documents(batch)
+        prepared = [
+            Document(page_content=doc.page_content, metadata=dict(doc.metadata or {}))
+            for doc in batch
+        ]
+        clean_batch = filter_complex_metadata(prepared)
+        db.add_documents(clean_batch)
         try:
             import torch
             if torch.cuda.is_available():
