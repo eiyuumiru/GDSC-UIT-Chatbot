@@ -9,7 +9,7 @@ from .Splitters import split_markdown
 from .EmbeddingManager import get_encoder
 from .Vectors import build_index as build_vec, load_index as load_vec
 from .Retriever import docs_from_chroma, make_hybrid_retriever
-from langchain.retrievers.document_compressors import CrossEncoderReranker
+from langchain_classic.retrievers.document_compressors import CrossEncoderReranker
 from langchain_core.tools import tool, BaseTool
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 

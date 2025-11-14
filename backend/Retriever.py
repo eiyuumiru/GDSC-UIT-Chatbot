@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from langchain_community.retrievers import BM25Retriever
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.documents import Document
-from langchain.retrievers import EnsembleRetriever
+from langchain_classic.retrievers import EnsembleRetriever
 from langchain_core.callbacks import CallbackManagerForRetrieverRun
 
 _TOKEN_PATTERN = re.compile(r"[\w\-À-ỹ]+", re.UNICODE)

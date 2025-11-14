@@ -1,8 +1,7 @@
 from typing import Any, Dict, List, Tuple
-from langchain.schema import Document
-from langchain_text_splitters import MarkdownHeaderTextSplitter
+from langchain_core.documents import Document
+from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
 from langchain_experimental.text_splitter import SemanticChunker
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from tqdm import tqdm
 
 from .ProcessingData import build_header_path, normalize_structured_text, parse_course_catalog
