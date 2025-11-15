@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 export type ActionsProps = ComponentProps<"div">;
 
 export const Actions = ({ className, children, ...props }: ActionsProps) => (
-  <div className={cn("flex items-center gap-1", className)} {...props}>
+  <div className={cn("flex items-center gap-0.5", className)} {...props}>
     {children}
   </div>
 );
@@ -30,7 +30,10 @@ export const Action = ({
 }: ActionProps) => {
   const button = (
     <Button
-      className={cn("size-9 p-1.5 text-muted-foreground hover:text-foreground", className)}
+      className={cn(
+        "h-9 rounded-lg bg-transparent px-4 text-sm text-muted-foreground transition-colors hover:bg-transparent hover:text-foreground dark:text-white/80",
+        className
+      )}
       size={size}
       type="button"
       variant={variant}

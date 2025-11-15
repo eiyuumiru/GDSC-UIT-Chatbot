@@ -3,6 +3,7 @@ import { sendPrompt } from "@/lib/api";
 import {
   AIInput,
   Action,
+  AuroraBackground,
   Actions,
   Conversation,
   ConversationContent,
@@ -107,7 +108,7 @@ function ConversationMessage({
             tooltip="Hữu ích"
             className={
               isLiked
-                ? "bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/20 hover:text-emerald-600 dark:text-emerald-400"
+                ? "bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30 dark:bg-emerald-500/25 dark:text-emerald-100 dark:hover:bg-emerald-500/30"
                 : ""
             }
             onClick={() => assistantControls.onFeedbackChange("like")}
@@ -119,7 +120,7 @@ function ConversationMessage({
             tooltip="Chưa ổn"
             className={
               isDisliked
-                ? "bg-red-500/15 text-red-600 hover:bg-red-500/20 hover:text-red-600 dark:text-red-400"
+                ? "bg-red-500/20 text-red-600 hover:bg-red-500/30 dark:bg-red-500/25 dark:text-red-100 dark:hover:bg-red-500/35"
                 : ""
             }
             onClick={() => assistantControls.onFeedbackChange("dislike")}
@@ -339,17 +340,18 @@ export default function App() {
   );
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-background text-foreground">
-      {!hasUserMessage && (
-        <div className="absolute right-4 top-4 z-10">
-          <ThemeSwitcher value={theme} onChange={setTheme} className="shadow-sm" />
-        </div>
-      )}
-      <main
-        className={`flex flex-1 flex-col px-4 transition-all duration-500 sm:px-8 lg:px-16 ${
-          hasUserMessage ? "gap-10 py-8" : "justify-center gap-6 py-6"
-        }`}
-      >
+    <AuroraBackground className="bg-transparent text-foreground items-stretch justify-start">
+      <div className="relative flex min-h-screen w-full flex-col text-foreground">
+        {!hasUserMessage && (
+          <div className="absolute right-4 top-4 z-10">
+            <ThemeSwitcher value={theme} onChange={setTheme} className="shadow-sm" />
+          </div>
+        )}
+        <main
+          className={`flex flex-1 flex-col px-4 transition-all duration-500 sm:px-8 lg:px-16 ${
+            hasUserMessage ? "gap-10 py-8" : "justify-center gap-6 py-6"
+          }`}
+        >
         {!hasUserMessage && (
           <div className="flex flex-col items-center gap-4 text-center transition-all duration-500">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
@@ -377,7 +379,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="rounded-full border border-border px-4 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-foreground/5"
+                  className="rounded-full bg-foreground/10 px-4 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-foreground/20"
                 >
                   Bắt đầu lại
                 </button>
@@ -432,7 +434,8 @@ export default function App() {
           )}
         </section>
       </main>
-    </div>
+      </div>
+    </AuroraBackground>
   );
 }
 

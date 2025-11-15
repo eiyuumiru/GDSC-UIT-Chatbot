@@ -14,4 +14,6 @@ export * from "./conversation";
 export * from "./text-shimmer";
 export * from "./theme-switcher";
 export * from "./theme-switcher-demo";
+export * from "./aurora-background";
+export * from "./demo";
 

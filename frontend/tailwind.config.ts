@@ -1,6 +1,18 @@
 import type { Config } from "tailwindcss";
+import flattenColorPalette from "tailwindcss/lib/util/flattenColorPalette";
 
-export default {
+const addVariablesForColors = ({ addBase, theme }: any) => {
+  const allColors = flattenColorPalette(theme("colors"));
+  const newVars = Object.fromEntries(
+    Object.entries(allColors).map(([key, val]) => [`--${key}`, val])
+  );
+
+  addBase({
+    ":root": newVars
+  });
+};
+
+const config: Config = {
   darkMode: ["class"],
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
@@ -44,7 +56,8 @@ export default {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-scale": "fade-scale 0.2s ease-out",
-        "slide-down-chat": "slide-down-chat 0.6s ease-out forwards"
+        "slide-down-chat": "slide-down-chat 0.6s ease-out forwards",
+        aurora: "aurora 60s linear infinite"
       },
       keyframes: {
         "accordion-down": {
@@ -74,6 +87,14 @@ export default {
             opacity: "1",
             transform: "translateY(0)"
           }
+        },
+        aurora: {
+          from: {
+            backgroundPosition: "50% 50%, 50% 50%"
+          },
+          to: {
+            backgroundPosition: "350% 50%, 350% 50%"
+          }
         }
       },
       borderRadius: {
@@ -83,6 +104,8 @@ export default {
       }
     }
   },
-  plugins: []
-} satisfies Config;
+  plugins: [addVariablesForColors]
+};
+
+export default config;
 
