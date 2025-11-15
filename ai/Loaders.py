@@ -13,7 +13,7 @@ def _read_markdown(path: Path) -> str:
         return path.read_text(encoding="utf-8", errors="ignore")
 
 
-def load_markdown(data_dir: str = "backend/dataset") -> List[Document]:
+def load_markdown(data_dir: str = "ai/dataset") -> List[Document]:
     base = Path(data_dir)
     docs: List[Document] = []
     for file_path in sorted(base.rglob("*.md")):

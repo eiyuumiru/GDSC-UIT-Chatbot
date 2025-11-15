@@ -22,5 +22,7 @@ chromadb
 tqdm
 rank_bm25
 python-dotenv
-streamlit
 unstructured[md]
+
+fastapi
+uvicorn[standard]
