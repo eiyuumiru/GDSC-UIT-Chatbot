@@ -48,8 +48,6 @@ def parse_table_block(lines: List[str]) -> Optional[List[str]]:
             records.append(" ; ".join(pairs))
     return records or None
 
-
-
 def parse_course_catalog(text: str) -> List[Dict[str, str]]:
     lines = text.splitlines()
     rows: List[List[str]] = []

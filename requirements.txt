@@ -1,31 +1,25 @@
-# install with arguments: --index-strategy unsafe-best-match
-# for example: uv pip install -r .\requirements.txt --index-strategy unsafe-best-match
-
 --index-url https://download.pytorch.org/whl/cu126
 --extra-index-url https://pypi.org/simple
 
-torch>=2.6
-torchvision
-torchaudio
-
+torch>=2.1
 transformers>=4.44
 safetensors
+sentence-transformers
 
-langchain
+langchain>=1.0.0
 langchain-community
-langchain_groq
 langchain-chroma
 langchain-experimental
-langchain_huggingface
-langchain-unstructured
-langgraph-checkpoint-sqlite
-langmem
+langchain-groq
+langchain-huggingface
+langchain-text-splitters
+
+langgraph
 chromadb
 tqdm
-sentence-transformers
-unstructured
-unstructured[md]
-streamlit
-langgraph 
 rank_bm25
-einops
+python-dotenv
+unstructured[md]
+
+fastapi
+uvicorn[standard]

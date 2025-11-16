@@ -9,7 +9,7 @@ from .Splitters import split_markdown
 from .EmbeddingManager import get_encoder
 from .Vectors import build_index as build_vec, load_index as load_vec
 from .Retriever import docs_from_chroma, make_hybrid_retriever
-from langchain.retrievers.document_compressors import CrossEncoderReranker
+from langchain_classic.retrievers.document_compressors import CrossEncoderReranker
 from langchain_core.tools import tool, BaseTool
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 
@@ -90,14 +90,6 @@ class RetrieverService:
         logger.info("[retrieve] done candidates=%s ranked=%s retrieve=%.3fs rerank=%.3fs", len(candidate_docs), len(ranked_docs), t1 - t0, t2 - t1)
         logger.info("[retrieve] ranked_docs sample: %s", ranked_docs)
 
-        # # Debug logging
-        # for idx, doc in enumerate(ranked_docs, start=1):
-        #     chunk_text = (doc.page_content or "").strip().replace("\n", " ")
-        #     if len(chunk_text) > 300:
-        #         chunk_text = chunk_text[:300].rstrip() + "..."
-        #     source = doc.metadata.get("source", "")
-        #     print(f"[retrieve] #{idx} source={source} chunk={chunk_text}", flush=True)
-
         results: List[Dict[str, Any]] = [
             {
                 "source": doc.metadata.get("source", ""),
@@ -112,44 +104,9 @@ class RetrieverService:
 def make_retrieve_tool(svc: RetrieverService) -> BaseTool:
     @tool(response_format="content_and_artifact")
     def _retrieve(query: str) -> tuple[str, List[Dict[str, Any]]]:
-        """Retrieve information about UIT's academic curriculum (majors, courses, credits, and regulations) from the internal vector database."""
+        """Search UIT knowledge base and return the normalized snippets used as tool context."""
         return svc._retrieve_impl(query)
     return _retrieve
-
-
-# def build_index(
-#         data_dir: str = "backend/dataset",
-#         percentile: int = 92,
-#         enforce_max: int = 850,
-#         overlap: int = 120,
-#         batch_size: int = 64,
-#         min_chunk_chars: int = 320,
-#         soft_merge_chars: int = 160,
-#         prefix_headers: bool = True,
-#         clear_existing: bool = True,
-#     ) -> Dict[str, Any]:
-#         print("Phase 1/3: load docs ...", flush=True)
-#         docs = load_markdown(data_dir)
-#         print(f"Docs: {len(docs)}", flush=True)
-#         print("Phase 2/3: semantic split ...", flush=True)
-#         enc = get_encoder(batch_size=batch_size)
-#         chunks = split_markdown(
-#             docs,
-#             encoder=enc,
-#             percentile=percentile,
-#             enforce_max=enforce_max,
-#             overlap=overlap,
-#             show_progress=True,
-#             min_chunk_chars=min_chunk_chars,
-#             soft_merge_chars=soft_merge_chars,
-#             prefix_headers=prefix_headers,
-#         )
-#         print(f"Chunks: {len(chunks)}", flush=True)
-#         print("Phase 3/3: build index ...", flush=True)
-#         db = build_vec(chunks, enc, batch_size=batch_size, show_progress=True, clear_existing=clear_existing)
-#         self._resolve_caches(db=db, enc=enc)
-#         count = getattr(db._collection, "count")() if hasattr(db, "_collection") else None
-#         return {"docs": len(docs), "chunks": len(chunks), "count": count}
 
 class ContextFormatter:
     def __init__(self, max_chars: int = 8000, max_items: int = 6):
@@ -167,7 +124,6 @@ class ContextFormatter:
             text = " ".join(lines)
         else:
             text = re.sub(r"\s+", " ", raw).strip()
-
         if "; " in text or " o " in text:
             parts = re.split(r";|\so\s", text)
             parts = [p.strip(" .") for p in parts if p.strip()]
@@ -178,8 +134,6 @@ class ContextFormatter:
     def _normalize_table(self, piece: str) -> str:
         rows = []
         text = re.sub(r"\s+", " ", piece.replace("|", " "))
-
-        # Regex: Mã môn (chữ + số) + Tên môn + TC + LT + TH
         matches = re.findall(r"([A-Z]{2,}\d+)\s+([^0-9]+?)\s+(\d+)\s+(\d+)\s+(\d+)", text)
         for m in matches:
             ma, ten, tc, lt, th = m

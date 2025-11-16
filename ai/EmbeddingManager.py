@@ -1,6 +1,6 @@
 ﻿from __future__ import annotations
 from typing import List
-from langchain.embeddings.base import Embeddings
+from langchain_core.embeddings import Embeddings
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings 
 
 DEFAULT_MODEL = "AITeamVN/Vietnamese_Embedding_v2"

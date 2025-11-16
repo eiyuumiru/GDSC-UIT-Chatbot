@@ -1,12 +1,12 @@
 from typing import List
-from langchain.schema import Document
+from langchain_core.documents import Document
 from langchain_chroma import Chroma
 from langchain_community.vectorstores.utils import filter_complex_metadata
 
 from tqdm import tqdm
 import gc
 
-PERSIST_DIR = "backend/.index/chroma"
+PERSIST_DIR = "ai/.index/chroma"
 COLLECTION  = "uit_edu"
 
 def build_index(
@@ -79,4 +79,3 @@ def load_index(
         collection_name=collection_name,
         embedding_function=encoder,
     )
-    

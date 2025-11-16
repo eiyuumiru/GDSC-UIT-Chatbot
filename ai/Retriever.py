@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from langchain_community.retrievers import BM25Retriever
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.documents import Document
-from langchain.retrievers import EnsembleRetriever
+from langchain_classic.retrievers import EnsembleRetriever
 from langchain_core.callbacks import CallbackManagerForRetrieverRun
 
 _TOKEN_PATTERN = re.compile(r"[\w\-À-ỹ]+", re.UNICODE)
@@ -30,15 +30,7 @@ class HybridCandidate:
     term_norm: float = 0.0
     coarse_score: float = 0.0
 
-# ==============================
-# TermHit Retriever (custom)
-# ==============================
 class TermHitRetriever(BaseRetriever):
-    """Retriever phụ để tính term_hits dựa trên keyword match trong content/metadata.
-
-    Implemented as a field-based class so it's compatible with BaseRetriever's
-    dataclass/pydantic-style initialization. Do not override __init__.
-    """
     chunks: Sequence[Document]
 
     def _get_relevant_documents(self, query: str, *, run_manager: CallbackManagerForRetrieverRun) -> List[Document]:
@@ -60,7 +52,6 @@ class TermHitRetriever(BaseRetriever):
                 hits += combined.count(token)
 
             if hits > 0:
-                # Ghi lại score vào metadata để EnsembleRetriever normalize
                 scored_doc = Document(
                     page_content=doc.page_content,
                     metadata={**meta, "term_hits": hits},
@@ -71,28 +62,14 @@ class TermHitRetriever(BaseRetriever):
 
 def make_hybrid_retriever(
     chunks: Sequence[Document],
-    db,  # VectorStore (vd: Chroma, FAISS...)
+    db,
     k: int = 10,
     weights: list[float] = [0.6, 0.3, 0.1],
 ) -> EnsembleRetriever:
-    """
-    Tạo HybridRetriever dùng EnsembleRetriever:
-      - BM25 (lexical)
-      - Dense retriever (vectorstore)
-      - TermHitRetriever (match từ khóa trong content/metadata)
-    """
-
-    # BM25 lexical retriever
     bm25 = BM25Retriever.from_documents(chunks, preprocess_func=_tokenize)
     bm25.k = k
-
-    # Dense retriever từ vectorstore
     dense = db.as_retriever(search_kwargs={"k": k})
-
-    # TermHit retriever (instantiate with keyword to match field-based init)
     term = TermHitRetriever(chunks=chunks)
-
-    # Ensemble retriever (LangChain tự normalize + weighted sum)
     hybrid = EnsembleRetriever(
         retrievers=[bm25, dense, term],
         weights=weights,

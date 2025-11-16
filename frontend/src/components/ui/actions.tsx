@@ -1,0 +1,63 @@
+'use client';
+
+import type { ComponentProps } from "react";
+
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+
+export type ActionsProps = ComponentProps<"div">;
+
+export const Actions = ({ className, children, ...props }: ActionsProps) => (
+  <div className={cn("flex items-center gap-0.5", className)} {...props}>
+    {children}
+  </div>
+);
+
+export type ActionProps = ComponentProps<typeof Button> & {
+  tooltip?: string;
+  label?: string;
+};
+
+export const Action = ({
+  tooltip,
+  children,
+  label,
+  className,
+  variant = "ghost",
+  size = "sm",
+  ...props
+}: ActionProps) => {
+  const button = (
+    <Button
+      className={cn(
+        "h-9 rounded-lg bg-transparent px-4 text-sm text-muted-foreground transition-colors hover:bg-transparent hover:text-foreground dark:text-white/80",
+        className
+      )}
+      size={size}
+      type="button"
+      variant={variant}
+      {...props}
+    >
+      {children}
+      <span className="sr-only">{label || tooltip}</span>
+    </Button>
+  );
+
+  if (tooltip) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>{button}</TooltipTrigger>
+          <TooltipContent>
+            <p>{tooltip}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return button;
+};
+
+

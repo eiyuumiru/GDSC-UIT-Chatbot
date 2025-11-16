@@ -2,8 +2,8 @@ from pathlib import Path
 import json
 from typing import List
 
-from langchain.schema import Document
-from langchain_unstructured.document_loaders import UnstructuredLoader
+from langchain_core.documents import Document
+from langchain_community.document_loaders import UnstructuredMarkdownLoader
 
 
 def _read_markdown(path: Path) -> str:
@@ -13,13 +13,13 @@ def _read_markdown(path: Path) -> str:
         return path.read_text(encoding="utf-8", errors="ignore")
 
 
-def load_markdown(data_dir: str = "backend/dataset") -> List[Document]:
+def load_markdown(data_dir: str = "ai/dataset") -> List[Document]:
     base = Path(data_dir)
     docs: List[Document] = []
     for file_path in sorted(base.rglob("*.md")):
         source = str(file_path)
         docs.append(Document(page_content=_read_markdown(file_path), metadata={"source": source}))
-        loader = UnstructuredLoader(str(file_path), mode="elements")
+        loader = UnstructuredMarkdownLoader(str(file_path), mode="elements")
         elements = list(loader.load())
         for idx, element in enumerate(elements):
             raw_content = element.page_content or ""
