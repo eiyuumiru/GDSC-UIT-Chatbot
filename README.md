@@ -1,89 +1,105 @@
 # GDGoC-UIT-Chatbot Monorepo
 
-This repository now follows a clean multi-folder structure:
+Generative AI chatbot for the UIT curriculum. The repository contains the Groq-powered LangGraph pipeline (`ai/`), the FastAPI transport layer (`backend/`), and a Vite + React + shadcn/tailwind client (`frontend/`).
 
-| Folder    | Purpose                                                                                   |
-|-----------|-------------------------------------------------------------------------------------------|
-| `ai/`     | LangChain / RAG pipeline, retrievers, loaders, vector stores, etc. (former `backend/`).   |
-| `backend/`| FastAPI bridge that exposes the AI pipeline to the outside world.                         |
-| `frontend/`| React + Vite + TypeScript + Tailwind + shadcn/ui client (replacing the old Streamlit UI).|
+## Repository layout
 
-## Backend (FastAPI ↔ ai)
+| Folder      | Purpose                                                                 |
+|-------------|-------------------------------------------------------------------------|
+| `ai/`       | Data loaders, semantic chunker, retrievers, Groq LangGraph pipeline.    |
+| `backend/`  | FastAPI surface that exposes health checks and the `/chat` endpoint.    |
+| `frontend/` | Vite React client with shadcn components and TailwindCSS styling.       |
+
+## Requirements
+
+- Python 3.11+ with `pip` or [uv](https://github.com/astral-sh/uv)
+- Node.js 18+ with `npm`
+- A Groq API key (`llama-3.3-70b-versatile` is used by default)
+- (Optional) CUDA-capable GPU for accelerating embedding builds
+
+## Backend API (FastAPI ↔ `ai`)
 
 1. Install dependencies:
    ```bash
-   uv pip install -r requirements.txt   # or: pip install -r requirements.txt
+   uv pip install -r .\requirements.txt --index-strategy unsafe-best-match
    ```
-2. Set the required environment variables (e.g. in a `.env` file at repo root):
+2. Configure environment variables (e.g. `.env` at the repo root):
    ```env
-   GROQ_API_KEY=...
-   GROQ_MODEL_NAME=llama-3.3-70b-versatile
-   GROQ_TEMPERATURE=0.5
-   CORS_ALLOW_ORIGINS=http://localhost:5173
+   GROQ_API_KEY=your_key
    ```
 3. Run the API:
    ```bash
    uvicorn backend.main:app --reload --port 8000
    ```
-   The FastAPI app imports `ai.LLMService` and other helpers from the `ai` package, so both folders stay isolated but connected.
 
-## Frontend (React + shadcn + Tailwind 4)
+### HTTP surface
+
+| Method | Path     | Description                               |
+|--------|----------|-------------------------------------------|
+| GET    | `/health`| Liveness probe (`{"status": "ok"}`).      |
+| POST   | `/chat`  | Accepts a chat turn and streams to Groq.  |
+
+`POST /chat` expects:
+
+```json
+{
+  "message": "Cần bao nhiêu tín chỉ tốt nghiệp?",
+  "session_id": "uuid",
+  "tool_id": null,
+  "image_base64": null
+}
+```
+
+The FastAPI route instantiates `ai.LLMService`, runs the LangGraph agent inside a worker thread, and returns the most recent assistant message.
+
+## AI knowledge pipeline (`ai/`)
+
+- Markdown sources live under `ai/dataset/`.
+- Semantic chunking is handled by `ai/Splitters.py` (Markdown headers + SemanticChunker).
+- `ai/Vectors.py` maintains a local Chroma index in `ai/.index/chroma`.
+- `ai/FullChain.py` wires the retriever stack (BM25 + dense + term hits), reranks with `HuggingFaceCrossEncoder`, and exposes a LangGraph tool for Groq's `ChatGroq`.
+
+### Rebuilding the vector store
+
+Execute the following from the repo root whenever the dataset changes:
+
+```python
+from ai.EmbeddingManager import get_encoder
+from ai.Loaders import load_markdown
+from ai.Splitters import split_markdown
+from ai.Vectors import build_index
+
+docs = load_markdown()
+encoder = get_encoder()
+chunks = split_markdown(docs, encoder, show_progress=True)
+build_index(chunks, encoder)
+```
+
+The default settings persist embeddings to `ai/.index/chroma`, which `RetrieverService` automatically loads when the backend starts.
+
+## Frontend (React + Vite + shadcn + TailwindCSS 3)
 
 1. Install dependencies:
    ```bash
    cd frontend
    npm install
    ```
-2. Configure the API endpoint in `frontend/.env` (defaults to `http://localhost:8000`):
+2. Create `frontend/.env` if you need a non-default API URL:
    ```env
    VITE_API_BASE_URL=http://localhost:8000
    ```
-3. Start the dev server:
+3. Available scripts:
    ```bash
-   npm run dev
+   npm run dev      # start Vite dev server on :5173
+   npm run build    # type-check + production build
+   npm run preview  # preview the production build
+   npm run lint     # TypeScript-only lint pass
    ```
 
-### shadcn project structure
-
-The shadcn CLI is already initialized via `components.json`, using the aliases:
-
-- `@/components/ui` → default directory for reusable UI primitives (e.g. `PromptBox` lives in `frontend/src/components/ui/chatgpt-prompt-input.tsx`).
-- `@/components` → composite components.
-- `@/lib/utils` → utility helpers (contains the `cn` helper).
-
-To add more shadcn components:
-```bash
-npx shadcn@latest add button
-```
-They will automatically be generated under `src/components/ui`, so there is no need to manually rearrange files.
-
-### Tailwind & styling
-
-- Tailwind 4 is enabled through `src/index.css`, which already imports:
-  ```css
-  @import "tailwindcss";
-  @import "tw-animate-css";
-  :root { --radius: 0.65rem; }
-  ```
-- Custom animation utilities live in `src/styles/tw-animate-css.css`.
-- Global design tokens and shadcn variables are also defined inside `src/index.css`.
-
-### Prompt input component
-
-The high-fidelity prompt component provided in the task is integrated as `PromptBox` in `frontend/src/components/ui/chatgpt-prompt-input.tsx`, and a live showcase is available via `PromptBoxDemo` for Storybook-style testing. The component relies on:
-
-- `@radix-ui/react-tooltip`, `@radix-ui/react-popover`, `@radix-ui/react-dialog`
-- `lucide-react` icons (per requirement to use lucide instead of raw SVGs)
-- Hidden inputs (`selectedTool`, `imageData`) so FastAPI receives the correct metadata
+The UI lives in `frontend/src/components/ui`, reusing shadcn primitives (see `components.json`). `App.tsx` orchestrates the chat experience, talking to `frontend/src/lib/api.ts`, which forwards payloads to `POST /chat`.
 
 ## Connecting the layers
 
-- Frontend submits chat payloads to `POST /chat` exposed by `backend/main.py`.
-- The FastAPI route calls into `ai.LLMService`, which runs the Groq-powered LangChain pipeline.
-- Update `VITE_API_BASE_URL` if the backend runs on a different host/port, and adjust `CORS_ALLOW_ORIGINS` accordingly so browsers can reach the API.
-
-## Removing Streamlit
-
-Streamlit has been fully removed from the repository. All UI work now happens inside the `frontend` React app, keeping the Python layers focused on inference. If any residual Streamlit files reappear, they can be safely deleted because they are no longer part of the architecture.
-
-
+- The frontend sends JSON payloads via `sendPrompt` → `POST /chat`.
+- FastAPI hands control to `ai.LLMService`, which uses Groq + LangGraph tools over the UIT curriculum embeddings.
+- Update `VITE_API_BASE_URL` and `CORS_ALLOW_ORIGINS` together when deploying to different hosts to avoid browser preflight issues.

@@ -4,7 +4,7 @@ import os
 import sys
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from uuid import uuid4
 
 from dotenv import load_dotenv
@@ -13,13 +13,17 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-# Ensure the repository root (which contains the `ai` package) is importable when
-# running `python backend/main.py`.
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+def _ensure_project_root() -> Path:
+    root = Path(__file__).resolve().parents[1]
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    return root
 
-from ai.LLMService import LLMService  # noqa: E402
+
+PROJECT_ROOT = _ensure_project_root()
+
+if TYPE_CHECKING:
+    from ai.LLMService import LLMService
 
 load_dotenv()
 
@@ -30,14 +34,16 @@ def _parse_allowed_origins() -> list[str]:
 
 
 @lru_cache(maxsize=1)
-def get_llm_service() -> LLMService:
+def get_llm_service() -> "LLMService":
+    from ai.LLMService import LLMService as _LLMService
+
     groq_api_key = os.getenv("GROQ_API_KEY")
     if not groq_api_key:
         raise RuntimeError("Missing GROQ_API_KEY environment variable.")
     retriever_cfg: dict[str, Any] = {
         "model_name": "jinaai/jina-reranker-v2-base-multilingual",
     }
-    return LLMService(
+    return _LLMService(
         groq_api_key=groq_api_key,
         model=os.getenv("GROQ_MODEL_NAME", "llama-3.3-70b-versatile"),
         temperature=float(os.getenv("GROQ_TEMPERATURE", "0.5")),
@@ -83,7 +89,7 @@ async def chat(payload: ChatRequest):
 
     try:
         result = await run_in_threadpool(service, payload.message, payload.session_id)
-    except Exception as exc:  # pragma: no cover - safety
+    except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     messages = result.get("messages") if isinstance(result, dict) else None

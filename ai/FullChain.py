@@ -104,7 +104,6 @@ class RetrieverService:
 def make_retrieve_tool(svc: RetrieverService) -> BaseTool:
     @tool(response_format="content_and_artifact")
     def _retrieve(query: str) -> tuple[str, List[Dict[str, Any]]]:
-        """Search UIT program knowledge base and return ranked context snippets for the given query."""
         return svc._retrieve_impl(query)
     return _retrieve
 
