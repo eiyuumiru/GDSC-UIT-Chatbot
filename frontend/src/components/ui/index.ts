@@ -1,11 +1,6 @@
-export * from "./chatgpt-prompt-input";
-export * from "./prompt-box-demo";
 export * from "./ai-input";
-export * from "./ai-input-demo";
 export * from "./textarea";
 export * from "./actions";
-export * from "./ai-actions";
-export * from "./ai-actions-demo";
 export * from "./button";
 export * from "./tooltip";
 export * from "./message";
@@ -13,7 +8,5 @@ export * from "./avatar";
 export * from "./conversation";
 export * from "./text-shimmer";
 export * from "./theme-switcher";
-export * from "./theme-switcher-demo";
 export * from "./aurora-background";
-export * from "./demo";
 
