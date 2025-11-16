@@ -33,3 +33,4 @@ Thumbs.db
 .streamlit/
 ai/.index*/
 tmp_*.py
+.index/
