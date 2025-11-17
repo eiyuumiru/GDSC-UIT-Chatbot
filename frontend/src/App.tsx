@@ -11,6 +11,7 @@ import {
   Message,
   MessageAvatar,
   MessageContent,
+  TextEffect,
   TextShimmer,
   ThemeSwitcher
 } from "@/components/ui";
@@ -69,6 +70,37 @@ function ConversationMessage({
   const isLiked = assistantControls?.feedbackValue === "like";
   const isDisliked = assistantControls?.feedbackValue === "dislike";
   const shouldShowShimmer = isAssistant && assistantControls?.isRegenerating;
+  const renderMessageBody = () => {
+    if (!isAssistant) {
+      return <p className="whitespace-pre-line text-sm leading-relaxed">{message.content}</p>;
+    }
+
+    if (!message.content) {
+      return null;
+    }
+
+    const responseLines = message.content.split(/\r?\n/);
+
+    return (
+      <div className="space-y-1.5">
+        {responseLines.map((line, idx) =>
+          line.trim().length ? (
+            <TextEffect
+              key={`${message.id}-line-${idx}`}
+              per="char"
+              preset="fade"
+              as="p"
+              className="font-medium text-left text-foreground text-sm leading-relaxed tracking-normal"
+            >
+              {line}
+            </TextEffect>
+          ) : (
+            <span key={`${message.id}-gap-${idx}`} className="block h-2" aria-hidden="true" />
+          )
+        )}
+      </div>
+    );
+  };
 
   if (shouldShowShimmer) {
     return (
@@ -86,7 +118,7 @@ function ConversationMessage({
     >
       <MessageAvatar src={avatarSrc} name={avatarName} />
       <MessageContent>
-        <p className="whitespace-pre-line text-sm leading-relaxed">{message.content}</p>
+        {renderMessageBody()}
         <span className="mt-2 block text-[11px] uppercase tracking-wide text-muted-foreground/70">
           {new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </span>
