@@ -20,6 +20,7 @@ tqdm
 rank_bm25
 python-dotenv
 unstructured[md]
+einops
 
 fastapi
 uvicorn[standard]
