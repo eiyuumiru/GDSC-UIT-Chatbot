@@ -1,8 +1,8 @@
 ﻿from __future__ import annotations
 import re
 from dataclasses import dataclass
-from typing import Sequence, List
-from collections.abc import Sequence
+from typing import Sequence, List, Optional, Any
+from collections.abc import Sequence as ABCSequence
 from langchain_community.retrievers import BM25Retriever
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.documents import Document
@@ -61,32 +61,59 @@ class TermHitRetriever(BaseRetriever):
         return scored_docs
 
 def make_hybrid_retriever(
-    chunks: Sequence[Document],
+    chunks: ABCSequence[Document],
     db,
     k: int = 10,
-    weights: list[float] = [0.6, 0.3, 0.1],
+    weights: list[float] = [0.85, 0.15],
+    use_server_sparse: bool = True,
 ) -> EnsembleRetriever:
-    bm25 = BM25Retriever.from_documents(chunks, preprocess_func=_tokenize)
-    bm25.k = k
     dense = db.as_retriever(search_kwargs={"k": k})
     term = TermHitRetriever(chunks=chunks)
-    hybrid = EnsembleRetriever(
-        retrievers=[bm25, dense, term],
-        weights=weights,
-    )
+    if use_server_sparse:
+        hybrid = EnsembleRetriever(
+            retrievers=[dense, term],
+            weights=weights,
+        )
+    else:
+        bm25 = BM25Retriever.from_documents(list(chunks), preprocess_func=_tokenize)
+        bm25.k = k
+        hybrid = EnsembleRetriever(
+            retrievers=[bm25, dense, term],
+            weights=[0.3, 0.6, 0.1],
+        )
     return hybrid
 
-def docs_from_chroma(db) -> list[Document]:
-    collection = getattr(db, "_collection", None)
-    if collection is None:
+def docs_from_qdrant(db, batch_size: int = 256) -> list[Document]:
+    client = getattr(db, "client", None)
+    collection_name: Optional[str] = getattr(db, "collection_name", None) or getattr(db, "_collection_name", None)
+    if client is None or not collection_name:
         return []
-    data = collection.get(include=["documents", "metadatas"])
-    docs = []
-    ids = data.get("ids", [])
-    texts = data.get("documents", [])
-    metas = data.get("metadatas", [])
-    for doc_id, text, meta in zip(ids, texts, metas):
-        info = dict(meta or {})
-        info.setdefault("_id", doc_id)
-        docs.append(Document(page_content=text or "", metadata=info))
+
+    docs: list[Document] = []
+    offset: Any = None
+
+    while True:
+        points, offset = client.scroll(
+            collection_name=collection_name,
+            with_payload=True,
+            with_vectors=False,
+            limit=batch_size,
+            offset=offset,
+        )
+        if not points:
+            break
+        for point in points:
+            payload = dict(getattr(point, "payload", {}) or {})
+            text = payload.pop("page_content", payload.pop("text", "")) or ""
+            nested_meta = payload.pop("metadata", {})
+            if isinstance(nested_meta, dict):
+                metadata = {**payload, **nested_meta}
+            else:
+                metadata = payload
+            point_id = getattr(point, "id", None)
+            if point_id is not None:
+                metadata.setdefault("_id", point_id)
+            docs.append(Document(page_content=text, metadata=metadata))
+        if offset is None:
+            break
     return docs

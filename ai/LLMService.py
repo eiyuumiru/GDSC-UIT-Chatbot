@@ -135,4 +135,4 @@ class LLMService(ContextFormatter):
 
     def __call__(self, question: str, thread_id: str = "default_session") -> Any:
         config = {"configurable": {"thread_id": thread_id}}
-        return self.graph.invoke({"messages": [HumanMessage(content=question)]}, config=config)  # type: ignore
+        return self.graph.invoke({"messages": [HumanMessage(content=question)]}, config=config)

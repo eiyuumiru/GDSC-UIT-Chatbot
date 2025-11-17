@@ -41,7 +41,8 @@ def get_llm_service() -> "LLMService":
     if not groq_api_key:
         raise RuntimeError("Missing GROQ_API_KEY environment variable.")
     retriever_cfg: dict[str, Any] = {
-        "model_name": "jinaai/jina-reranker-v2-base-multilingual",
+        "model_name": os.getenv("FPT_RERANKER_MODEL", "bge-reranker-v2-m3"),
+        "top_n": int(os.getenv("RETRIEVER_TOP_N", "3")),
     }
     return _LLMService(
         groq_api_key=groq_api_key,

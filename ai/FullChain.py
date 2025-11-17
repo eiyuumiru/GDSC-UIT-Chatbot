@@ -1,91 +1,70 @@
 from __future__ import annotations
+import os
 from typing import Dict, Any, List, Optional
 import json
 import re
 import time
 import logging
+from .EmbeddingManager import get_encoder, get_sparse_encoder
+from .Vectors import load_index as load_vec, build_index as build_qdrant_index
+from .Retriever import docs_from_qdrant, make_hybrid_retriever
 from .Loaders import load_markdown
 from .Splitters import split_markdown
-from .EmbeddingManager import get_encoder
-from .Vectors import build_index as build_vec, load_index as load_vec
-from .Retriever import docs_from_chroma, make_hybrid_retriever
-from langchain_classic.retrievers.document_compressors import CrossEncoderReranker
+from .Reranker import FPTReranker
 from langchain_core.tools import tool, BaseTool
-from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 
 logger = logging.getLogger(__name__)
 
 class RetrieverService:
-    def __init__(self, model_name = "jinaai/jina-reranker-v2-base-multilingual", top_n: int = 3, weights: list[float] = [0.3, 0.6, 0.1]):
+    def __init__(self, model_name = "bge-reranker-v2-m3", top_n: int = 3, weights: list[float] = [0.85, 0.15], use_server_sparse: bool = True):
         self.top_n = top_n
+        self.use_server_sparse = use_server_sparse
         self._ENC = self.__init_Encoder()
+        self._SPARSE_ENC = self.__init_SparseEncoder() if use_server_sparse else None
+        if self.use_server_sparse and self._SPARSE_ENC is None:
+            self.use_server_sparse = False
         self._DB = self.__init_DB()
         self._CHUNKS_FOR_BM25 = self.__init_ChunksForBM25()
-        self._RERANKER: CrossEncoderReranker = self.__init_Reranker(model_name=model_name, top_n=top_n)
+        self._RERANKER = self.__init_Reranker(model_name=model_name, top_n=top_n)
         self.hybrid_retriever = self.__init_HybridRetriever(weights=weights, k=top_n)
 
     def __init_DB(self):
-        try:
-            return load_vec(encoder=self._ENC)
-        except Exception as e:
-            raise RuntimeError(f"Failed to load vector DB: {e}")
+        return load_vec(
+            encoder=self._ENC,
+            sparse_encoder=self._SPARSE_ENC if self.use_server_sparse else None,
+        )
 
     def __init_Encoder(self):
-        try:
-            return get_encoder(batch_size=64)
-        except Exception as e:
-            raise RuntimeError(f"Failed to load encoder: {e}")
+        return get_encoder(batch_size=64)
+    
+    def __init_SparseEncoder(self):
+        logger.info("Initializing sparse encoder for server-side hybrid search")
+        return get_sparse_encoder(batch_size=32)
 
     def __init_ChunksForBM25(self):
-        try:
-            return docs_from_chroma(self._DB)
-        except Exception as e:
-            raise RuntimeError(f"Failed to load BM25 chunks: {e}")
+        return docs_from_qdrant(self._DB)
 
-    def __init_Reranker(self, model_name: str = "jinaai/jina-reranker-v2-base-multilingual", top_n: int = 3) -> CrossEncoderReranker:
-        try:
-            device = "cpu"
-            try:
-                import torch
-                if torch.cuda.is_available():
-                    device = "cuda"
-            except Exception:
-                device = "cpu"
-            logger.info("Initializing CrossEncoderReranker model=%s device=%s top_n=%s", model_name, device, top_n)
-            model = HuggingFaceCrossEncoder(model_name=model_name, model_kwargs={"trust_remote_code": True, "device": device})
-            return CrossEncoderReranker(model=model, top_n=top_n)
-        except Exception as e:
-            raise RuntimeError(f"Failed to initialize reranker: {e}")
+    def __init_Reranker(self, model_name: str = "bge-reranker-v2-m3", top_n: int = 3) -> FPTReranker:
+        logger.info("Initializing FPTReranker model=%s top_n=%s", model_name, top_n)
+        return FPTReranker(model_name=model_name, top_n=top_n)
     
-    def __init_HybridRetriever(self, weights: list[float] = [0.3, 0.6, 0.1], k: int = 6):
-        try:
-            return make_hybrid_retriever(self._CHUNKS_FOR_BM25, self._DB, k=k, weights=weights)
-        except Exception as e:
-            raise RuntimeError(f"Failed to initialize hybrid retriever: {e}")
+    def __init_HybridRetriever(self, weights: list[float] = [0.85, 0.15], k: int = 6):
+        return make_hybrid_retriever(
+            self._CHUNKS_FOR_BM25,
+            self._DB,
+            k=k,
+            weights=weights,
+            use_server_sparse=self.use_server_sparse,
+        )
 
     def _retrieve_impl(self, query: str) -> tuple[str, List[Dict[str, Any]]]:
         t0 = time.perf_counter()
         logger.info("[retrieve] start query='%s' top_n=%s", query, self.top_n)
-        k_init = max(60, self.top_n * 6)
-        try:
-            candidate_docs = self.hybrid_retriever.invoke(query)
-        except Exception as e:
-            logger.exception("[retrieve] hybrid retriever failed: %s", e)
-            candidate_docs = []
-        if not candidate_docs:
-            try:
-                candidate_docs = self._DB.as_retriever(search_kwargs={"k": k_init}).invoke(query)
-            except Exception as e:
-                logger.exception("[retrieve] vector store fallback failed: %s", e)
-                candidate_docs = []
+        candidate_docs = self.hybrid_retriever.invoke(query)
 
         t1 = time.perf_counter()
-        try:
-            ranked_docs = self._RERANKER.compress_documents(documents=candidate_docs, query=query)
-            ranked_docs = ranked_docs[:self.top_n] if ranked_docs else candidate_docs[:self.top_n]
-        except Exception as e:
-            logger.exception("[retrieve] reranker failed, using top-k candidates: %s", e)
-            ranked_docs = candidate_docs[:self.top_n]
+        ranked_docs = self._RERANKER.rerank(query=query, documents=candidate_docs)
+        ranked_docs = ranked_docs[:self.top_n] if ranked_docs else candidate_docs[:self.top_n]
         t2 = time.perf_counter()
         logger.info("[retrieve] done candidates=%s ranked=%s retrieve=%.3fs rerank=%.3fs", len(candidate_docs), len(ranked_docs), t1 - t0, t2 - t1)
         logger.info("[retrieve] ranked_docs sample: %s", ranked_docs)
@@ -104,9 +83,32 @@ class RetrieverService:
 def make_retrieve_tool(svc: RetrieverService) -> BaseTool:
     @tool(response_format="content_and_artifact")
     def _retrieve(query: str) -> tuple[str, List[Dict[str, Any]]]:
-        """Search UIT knowledge base and return the normalized snippets used as tool context."""
+        """Retrieve UIT knowledge snippets for the current query."""
         return svc._retrieve_impl(query)
     return _retrieve
+
+
+def build_index(
+    *,
+    data_dir: str = "ai/dataset",
+    collection_name: str | None = None,
+    clear_existing: bool = True,
+    batch_size: int = 64,
+    show_progress: bool = True,
+) -> None:
+    docs = load_markdown(data_dir)
+    encoder = get_encoder()
+    sparse_encoder = get_sparse_encoder()
+    chunks = split_markdown(docs, encoder, show_progress=show_progress)
+    build_qdrant_index(
+        chunks,
+        encoder,
+        sparse_encoder=sparse_encoder,
+        collection_name=collection_name or os.getenv("QDRANT_COLLECTION", "uit_edu"),
+        batch_size=batch_size,
+        show_progress=show_progress,
+        clear_existing=clear_existing,
+    )
 
 class ContextFormatter:
     def __init__(self, max_chars: int = 8000, max_items: int = 6):

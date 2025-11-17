@@ -1,26 +1,19 @@
---index-url https://download.pytorch.org/whl/cu126
---extra-index-url https://pypi.org/simple
-
-torch>=2.1
-transformers>=4.44
-safetensors
-sentence-transformers
-
 langchain>=1.0.0
 langchain-community
-langchain-chroma
+langchain-qdrant
 langchain-experimental
 langchain-groq
-langchain-huggingface
 langchain-text-splitters
 
 langgraph
-chromadb
+qdrant-client>=1.9
 tqdm
 rank_bm25
+httpx
 python-dotenv
 unstructured[md]
-einops
+# einops
+fastembed
 
 fastapi
 uvicorn[standard]
