@@ -1,6 +1,6 @@
 from __future__ import annotations
 import os
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 import json
 import re
 import time
@@ -35,7 +35,7 @@ class RetrieverService:
         )
 
     def __init_Encoder(self):
-        return get_encoder(batch_size=64)
+        return get_encoder()
     
     def __init_SparseEncoder(self):
         logger.info("Initializing sparse encoder for server-side hybrid search")
@@ -61,10 +61,8 @@ class RetrieverService:
         t0 = time.perf_counter()
         logger.info("[retrieve] start query='%s' top_n=%s", query, self.top_n)
         candidate_docs = self.hybrid_retriever.invoke(query)
-
         t1 = time.perf_counter()
         ranked_docs = self._RERANKER.rerank(query=query, documents=candidate_docs)
-        ranked_docs = ranked_docs[:self.top_n] if ranked_docs else candidate_docs[:self.top_n]
         t2 = time.perf_counter()
         logger.info("[retrieve] done candidates=%s ranked=%s retrieve=%.3fs rerank=%.3fs", len(candidate_docs), len(ranked_docs), t1 - t0, t2 - t1)
         logger.info("[retrieve] ranked_docs sample: %s", ranked_docs)

@@ -6,9 +6,8 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_core.prompts import ChatPromptTemplate
 from langgraph.checkpoint.memory import MemorySaver
-from .FullChain import ContextFormatter, RetrieverService, make_retrieve_tool
-from langchain_groq import ChatGroq
-import os
+from .RetriverService import ContextFormatter, RetrieverService, make_retrieve_tool
+from .GroqService.GroqBase import GroqBase
 
 SYSTEM_INSTRUCTIONS = (
     "Bạn là một chatbot trả lời về chương trình đào tạo của Trường Đại học Công nghệ thông tin - Đại học Quốc Gia TP. Hồ Chí Minh (viết tắt là UIT).\n"
@@ -83,16 +82,12 @@ def _format_recent_history(state: MessagesState, max_chars: int = 2000, max_turn
 class LLMService(ContextFormatter):
     def __init__(self, groq_api_key: str, model: str = "llama-3.3-70b-versatile", temperature: float = 0.2, max_tokens: Optional[int] = None, retriever_config: Optional[Dict[str, Any]] = None):
         super().__init__()
-        self.llm = self.__init_LLM(groq_api_key=groq_api_key, model=model, temperature=temperature, max_tokens=max_tokens)
+        groq_base = GroqBase()
+        self.llm = groq_base.create_llm(api_key=groq_api_key, model=model, temperature=temperature, max_tokens=max_tokens)
         self.memory = self.__init_Memory()
         self._retriever_service = RetrieverService(**(retriever_config or {}))
         self._retrieve_tool = make_retrieve_tool(self._retriever_service)
         self.graph = self.__init_Graph()
-
-    def __init_LLM(self, groq_api_key: str, model: str = "llama-3.3-70b-versatile", temperature: float = 0.2, max_tokens: Optional[int] = None) -> ChatGroq:
-        if groq_api_key:
-            os.environ["GROQ_API_KEY"] = groq_api_key
-        return ChatGroq(model=model, temperature=temperature, max_tokens=max_tokens)
 
     def __init_Memory(self):
         return MemorySaver()
@@ -135,4 +130,4 @@ class LLMService(ContextFormatter):
 
     def __call__(self, question: str, thread_id: str = "default_session") -> Any:
         config = {"configurable": {"thread_id": thread_id}}
-        return self.graph.invoke({"messages": [HumanMessage(content=question)]}, config=config)
+        return self.graph.invoke({"messages": [HumanMessage(content=question)]}, config=config) # pyright: ignore[reportArgumentType]
