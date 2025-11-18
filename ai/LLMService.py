@@ -8,6 +8,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langgraph.checkpoint.memory import MemorySaver
 from .RetriverService import ContextFormatter, RetrieverService, make_retrieve_tool
 from .GroqService.GroqBase import GroqBase
+from .config.Groq import GroqLLMConfig as cfg
 
 SYSTEM_INSTRUCTIONS = (
     "Bạn là một chatbot trả lời về chương trình đào tạo của Trường Đại học Công nghệ thông tin - Đại học Quốc Gia TP. Hồ Chí Minh (viết tắt là UIT).\n"
@@ -80,10 +81,10 @@ def _format_recent_history(state: MessagesState, max_chars: int = 2000, max_turn
     return "\n".join(joined)
 
 class LLMService(ContextFormatter):
-    def __init__(self, groq_api_key: str, model: str = "llama-3.3-70b-versatile", temperature: float = 0.2, max_tokens: Optional[int] = None, retriever_config: Optional[Dict[str, Any]] = None):
+    def __init__(self, groq_api_key: str, model: str = cfg.DEFAULT_MODEL_NAME, temperature: float = cfg.DEFAULT_TEMPERATURE, timeout: float = cfg.DEFAULT_TIMEOUT, max_tokens: Optional[int] = None, retriever_config: Optional[Dict[str, Any]] = None):
         super().__init__()
         groq_base = GroqBase()
-        self.llm = groq_base.create_llm(api_key=groq_api_key, model=model, temperature=temperature, max_tokens=max_tokens)
+        self.llm = groq_base.create_llm(api_key=groq_api_key, model=model, temperature=temperature, max_tokens=max_tokens, timeout=timeout)
         self.memory = self.__init_Memory()
         self._retriever_service = RetrieverService(**(retriever_config or {}))
         self._retrieve_tool = make_retrieve_tool(self._retriever_service)
