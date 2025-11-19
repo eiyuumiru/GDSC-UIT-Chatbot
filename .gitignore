@@ -29,8 +29,6 @@ Thumbs.db
 # Sample: ignore all .env files
 .env*
 
-*.toml
-.streamlit/
-ai/.index*/
 tmp_*.py
+
 .index/
