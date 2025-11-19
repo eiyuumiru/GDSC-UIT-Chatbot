@@ -9,7 +9,7 @@ class GroqBase:
     Provides a factory method to initialize ChatLiteLLM with Groq API configuration.
     """
     
-    def create_llm(self, api_key: str, model: str, temperature: float, max_tokens: Optional[int], timeout: float) -> ChatLiteLLM:
+    def create_llm(self, api_key: str, model: str, temperature: float, max_tokens: Optional[int], timeout: float, max_retries: int) -> ChatLiteLLM:
         """
         Create a Groq LLM instance via LiteLLM.
         
@@ -25,4 +25,4 @@ class GroqBase:
         if api_key:
             os.environ["GROQ_API_KEY"] = api_key
         
-        return ChatLiteLLM(model=f"groq/{model}",temperature=temperature,max_tokens=max_tokens, request_timeout=timeout)
+        return ChatLiteLLM(model=f"groq/{model}",temperature=temperature,max_tokens=max_tokens, request_timeout=timeout, max_retries=max_retries)

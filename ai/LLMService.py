@@ -9,6 +9,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from .RetrieverService import ContextFormatter, RetrieverService, make_retrieve_tool
 from .GroqService.GroqBase import GroqBase
 from .config.Groq import GroqLLMConfig as cfg
+from litellm.utils import trim_messages
 
 SYSTEM_INSTRUCTIONS = (
     "Bạn là một chatbot trả lời về chương trình đào tạo của Trường Đại học Công nghệ thông tin - Đại học Quốc Gia TP. Hồ Chí Minh (viết tắt là UIT).\n"
@@ -83,8 +84,9 @@ def _format_recent_history(state: MessagesState, max_chars: int = 2000, max_turn
 class LLMService(ContextFormatter):
     def __init__(self, groq_api_key: str, model: str = cfg.DEFAULT_MODEL_NAME, temperature: float = cfg.DEFAULT_TEMPERATURE, timeout: float = cfg.DEFAULT_TIMEOUT, max_tokens: Optional[int] = None, retriever_config: Optional[Dict[str, Any]] = None):
         super().__init__()
+        self.model = model
         groq_base = GroqBase()
-        self.llm = groq_base.create_llm(api_key=groq_api_key, model=model, temperature=temperature, max_tokens=max_tokens, timeout=timeout)
+        self.llm = groq_base.create_llm(api_key=groq_api_key, model=model, temperature=temperature, max_tokens=max_tokens, timeout=timeout, max_retries=cfg.DEFAULT_MAX_RETRIES)
         self.memory = self.__init_Memory()
         self._retriever_service = RetrieverService(**(retriever_config or {}))
         self._retrieve_tool = make_retrieve_tool(self._retriever_service)
@@ -93,7 +95,7 @@ class LLMService(ContextFormatter):
     def __init_Memory(self):
         return MemorySaver()
     
-    def query_or_response(self, state: MessagesState):
+    def __query_or_response(self, state: MessagesState):
         planner_system = SystemMessage(
             content=(
                 "Bạn là chatbot chuyên trả lời về chương trình đào tạo của trường UIT. "
@@ -109,20 +111,22 @@ class LLMService(ContextFormatter):
         response = llm_with_tools.invoke([planner_system] + state["messages"])
         return {"messages": [response]}
     
-    def generate_with_context(self, state: MessagesState):
+    def __generate_with_context(self, state: MessagesState):
         chunks = _collect_tool_chunks_from_state(state)
         contexts = self.format_context(chunks)
         history = _format_recent_history(state)
         messages = ANSWER_PROMPT.format_messages(question=_get_last_user_question(state), contexts=contexts, history=history)
+        trimmed_result = trim_messages(messages=messages, model=self.model)
+        messages = trimmed_result[0] if isinstance(trimmed_result, tuple) else trimmed_result
         out = self.llm.invoke(messages)
         return {"messages": [out]}
 
     def __init_Graph(self):
         tools = ToolNode([self._retrieve_tool])
         graph_builder = StateGraph(MessagesState)
-        graph_builder.add_node("query_or_response", self.query_or_response)
+        graph_builder.add_node("query_or_response", self.__query_or_response)
         graph_builder.add_node("tools", tools)
-        graph_builder.add_node("generate_with_context", self.generate_with_context)
+        graph_builder.add_node("generate_with_context", self.__generate_with_context)
         graph_builder.add_edge(START, "query_or_response")
         graph_builder.add_conditional_edges("query_or_response", tools_condition, {END: END, "tools": "tools"})
         graph_builder.add_edge("tools", "generate_with_context")

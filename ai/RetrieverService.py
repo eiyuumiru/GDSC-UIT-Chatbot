@@ -3,7 +3,6 @@ import os
 from typing import Dict, Any, List
 import json
 import re
-import time
 import logging
 from .EmbeddingManager import get_encoder, get_sparse_encoder
 from .Vectors import load_index as load_vec, build_index as build_qdrant_index
@@ -12,12 +11,12 @@ from .Loaders import load_markdown
 from .Splitters import split_markdown
 from .Reranker import FPTReranker
 from langchain_core.tools import tool, BaseTool
+from .config.FPTCloud import RerankerModelConfig as cfg
 
 logger = logging.getLogger(__name__)
 
 class RetrieverService:
-    def __init__(self, model_name = "bge-reranker-v2-m3", top_n: int = 3, weights: list[float] = [0.85, 0.15], use_server_sparse: bool = True):
-        self.top_n = top_n
+    def __init__(self, model_name = cfg.DEFAULT_MODEL, top_n: int = cfg.DEFAULT_TOP_N, weights: list[float] = [0.85, 0.15], use_server_sparse: bool = True):
         self.use_server_sparse = use_server_sparse
         self._ENC = self.__init_Encoder()
         self._SPARSE_ENC = self.__init_SparseEncoder() if use_server_sparse else None
@@ -44,8 +43,7 @@ class RetrieverService:
     def __init_ChunksForBM25(self):
         return docs_from_qdrant(self._DB)
 
-    def __init_Reranker(self, model_name: str = "bge-reranker-v2-m3", top_n: int = 3) -> FPTReranker:
-        logger.info("Initializing FPTReranker model=%s top_n=%s", model_name, top_n)
+    def __init_Reranker(self, model_name: str, top_n: int) -> FPTReranker:
         return FPTReranker(model_name=model_name, top_n=top_n)
     
     def __init_HybridRetriever(self, weights: list[float] = [0.85, 0.15], k: int = 6):
@@ -58,15 +56,8 @@ class RetrieverService:
         )
 
     def _retrieve_impl(self, query: str) -> tuple[str, List[Dict[str, Any]]]:
-        t0 = time.perf_counter()
-        logger.info("[retrieve] start query='%s' top_n=%s", query, self.top_n)
         candidate_docs = self.hybrid_retriever.invoke(query)
-        t1 = time.perf_counter()
         ranked_docs = self._RERANKER.rerank(query=query, documents=candidate_docs)
-        t2 = time.perf_counter()
-        logger.info("[retrieve] done candidates=%s ranked=%s retrieve=%.3fs rerank=%.3fs", len(candidate_docs), len(ranked_docs), t1 - t0, t2 - t1)
-        logger.info("[retrieve] ranked_docs sample: %s", ranked_docs)
-
         results: List[Dict[str, Any]] = [
             {
                 "source": doc.metadata.get("source", ""),

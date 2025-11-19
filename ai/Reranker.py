@@ -19,7 +19,6 @@ class FPTReranker:
     
     Args:
         model_name: Name of the reranking model (default: bge-reranker-v2-m3)
-        max_documents: Maximum number of documents to send to API (default: 200)
         top_n: Number of top documents to return after reranking (default: 3)
         max_chars: Maximum characters per document, truncates if exceeded (default: 120000)
         
@@ -29,9 +28,8 @@ class FPTReranker:
     
     def __init__(
         self,
-        model_name: str = cfg.DEFAULT_MODEL,
-        max_documents: int = cfg.DEFAULT_MAX_DOCS,
-        top_n: int = 3,
+        model_name: str,
+        top_n: int,
         max_chars: int = cfg.DEFAULT_MAX_CHARS,
     ):
         if not FPT_RERANKER_API_KEY:
@@ -40,7 +38,7 @@ class FPTReranker:
                 "Set FPT_RERANKER_API_KEY or reuse FPT_EMBEDDING_API_KEY."
             )
         self.model_name = model_name
-        self.max_documents = max(1, max_documents)
+        self.max_documents = max(1, cfg.DEFAULT_MAX_DOCS)
         self.top_n = max(1, top_n)
         self.max_chars = max(0, max_chars)
         self._truncate_warned = False
@@ -117,15 +115,3 @@ class FPTReranker:
                 reranked_docs.append(limited_docs[idx])
         
         return reranked_docs
-
-if __name__ == "__main__":
-    reranker = FPTReranker()
-    query = "What is the capital of France?"
-    documents = [
-        Document(page_content="Berlin is the capital of Germany."),
-        Document(page_content="Madrid is the capital of Spain."),
-        Document(page_content="Hanoi is the capital of Spain."),
-        Document(page_content="Paris is the capital of France."),
-    ]
-    ranked_docs = reranker.rerank(query, documents)
-    print(ranked_docs)

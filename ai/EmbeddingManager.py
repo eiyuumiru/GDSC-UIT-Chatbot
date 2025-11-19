@@ -27,13 +27,12 @@ class FPTEmbedding(Embeddings):
     
     def __init__(
         self,
-        model_name: str = cfg.DEFAULT_MODEL,
+        model_name: str,
         max_seq_length: int = 2048,
         api_key: str | None = None,
-        base_url: str = cfg.DEFAULT_BASE_URL,
     ):
         self.model_name = model_name
-        self.base_url = base_url
+        self.base_url = cfg.DEFAULT_BASE_URL
         self.max_seq_length = max_seq_length
         self.api_key = api_key or API_KEY_ENV
 
@@ -90,7 +89,7 @@ class FPTEmbedding(Embeddings):
 
 def get_encoder(
     model_name: str = cfg.DEFAULT_MODEL,
-    max_input_chars: int = cfg.DEFAULT_MAX_INPUT_CHARS,
+    max_input_tokens: int = cfg.DEFAULT_MAX_INPUT_TOKEN,
 ) -> Embeddings:
     return FPTEmbedding(model_name=model_name)
 
