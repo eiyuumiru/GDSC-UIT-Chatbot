@@ -10,35 +10,12 @@ from .RetrieverService import ContextFormatter, RetrieverService, make_retrieve_
 from .GroqService.GroqBase import GroqBase
 from .config.Groq import GroqLLMConfig as cfg
 from litellm.utils import trim_messages
-
-SYSTEM_INSTRUCTIONS = (
-    "Bạn là một chatbot trả lời về chương trình đào tạo của Trường Đại học Công nghệ thông tin - Đại học Quốc Gia TP. Hồ Chí Minh (viết tắt là UIT).\n"
-    "Nguyên tắc:\n"
-    "• Suy luận từng bước một cách logic trong tâm trí, nhưng chỉ trả lời kết quả cuối cùng.\n"
-    "• Chỉ dùng thông tin đã được cung cấp trong dữ liệu tham chiếu và lịch sử hội thoại.\n"
-    "• Phân tích câu hỏi để xác định thông tin cần thiết (môn học, ngành, học kỳ, tín chỉ...).\n"
-    "• Nếu dữ liệu chưa đủ, giải thích ngắn gọn thiếu gì và gợi ý cách hỏi cụ thể.\n"
-    "• Trả lời tiếng Việt chuẩn, rõ ràng với gạch đầu dòng khi phù hợp.\n"
-    "• Tuyệt đối Không suy đoán, không thêm thông tin ngoài dữ liệu đã cho.\n"
-)
+from .Prompt.Prompts import SYSTEM_INSTRUCTIONS_MD, ANSWER_HUMAN_TEMPLATE_MD
 
 ANSWER_PROMPT = ChatPromptTemplate.from_messages(
     [
-        ("system", SYSTEM_INSTRUCTIONS),
-        (
-            "human",
-            "Lịch sử hội thoại gần đây:\n{history}\n\n"
-            "Câu hỏi hiện tại: {question}\n\n"
-            "Dữ liệu tham chiếu (có thể trống):\n"
-            "----------------\n"
-            "{contexts}\n"
-            "----------------\n\n"
-            "Hãy suy luận từng bước trong tâm trí:\n"
-            "1. Phân tích câu hỏi để xác định thông tin cần tìm\n"
-            "2. Kiểm tra dữ liệu tham chiếu và lịch sử có đủ thông tin không\n"
-            "3. Đưa ra câu trả lời ngắn gọn, rõ ràng dựa trên phân tích\n\n"
-            "Chỉ trả lời kết quả cuối cùng, không mô tả quá trình suy luận."
-        ),
+        ("system", SYSTEM_INSTRUCTIONS_MD),
+        ("human", ANSWER_HUMAN_TEMPLATE_MD),
     ]
 )
 
