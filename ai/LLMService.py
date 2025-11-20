@@ -10,8 +10,7 @@ from .RetrieverService import ContextFormatter, RetrieverService, make_retrieve_
 from .GroqService.GroqBase import GroqBase
 from .config.Groq import GroqLLMConfig as cfg
 from litellm.utils import trim_messages
-from .prompts import SYSTEM_INSTRUCTIONS_MD, ANSWER_HUMAN_TEMPLATE_MD
-
+from .Prompt.Prompts import SYSTEM_INSTRUCTIONS_MD, ANSWER_HUMAN_TEMPLATE_MD
 
 ANSWER_PROMPT = ChatPromptTemplate.from_messages(
     [
@@ -19,7 +18,6 @@ ANSWER_PROMPT = ChatPromptTemplate.from_messages(
         ("human", ANSWER_HUMAN_TEMPLATE_MD),
     ]
 )
-
 
 def _collect_tool_chunks_from_state(state: MessagesState) -> List[Dict[str, Any]]:
     chunks: List[Dict[str, Any]] = []

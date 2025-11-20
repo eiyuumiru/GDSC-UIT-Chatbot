@@ -1,5 +1,3 @@
-from langchain_core.prompts import ChatPromptTemplate
-
 # =========================
 # 1. SYSTEM PROMPT (Markdown)
 # =========================
@@ -70,7 +68,7 @@ bạn mới **in ra câu trả lời cuối cùng** cho người dùng.
 - Có thể thêm 1 câu kết ngắn gọn:
   - Gợi ý bước tiếp theo hoặc nơi sinh viên có thể xem thêm thông tin.
 
-> 🎯 Mục tiêu: **ngắn gọn, đúng trọng tâm, dựa hoàn toàn trên dữ liệu được cung cấp.**
+>Mục tiêu: **ngắn gọn, đúng trọng tâm, dựa hoàn toàn trên dữ liệu được cung cấp.**
 """
 
 # ===========================================
