@@ -204,7 +204,7 @@ export default function App() {
   const [messageFeedback, setMessageFeedback] = useState<Record<string, AssistantFeedback>>({});
   const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null>(null);
 
-  const handleReset = () => {
+  const handleRestart = () => {
     setMessages([]);
     setSessionId(createId());
     setInputInstanceId(createId());
@@ -410,7 +410,7 @@ export default function App() {
                 <span className="text-xs text-muted-foreground">{messages.length} tin nhắn</span>
                 <button
                   type="button"
-                  onClick={handleReset}
+                  onClick={handleRestart}
                   className="rounded-full bg-foreground/10 px-4 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-foreground/20"
                 >
                   Bắt đầu lại
@@ -447,6 +447,7 @@ export default function App() {
         )}
 
         <section
+        
           className={`w-full space-y-3 transition-all duration-500 ${
             hasUserMessage ? "mt-auto" : "mx-auto max-w-2xl"
           } ${shouldAnimateAnchor ? "animate-slide-down-chat" : ""}`}

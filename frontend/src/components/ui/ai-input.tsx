@@ -24,17 +24,21 @@ export function AIInput({
   onSubmit,
   className
 }: AIInputProps) {
-  const { textareaRef, adjustHeight } = useAutoResizeTextarea({
-    minHeight,
-    maxHeight
-  });
   const [inputValue, setInputValue] = useState("");
+
+  // 1. Truyền inputValue vào hook để hook tự xử lý
+  const { textareaRef } = useAutoResizeTextarea({
+    minHeight,
+    maxHeight,
+    value: inputValue, 
+  });
 
   const handleReset = () => {
     if (!inputValue.trim()) return;
     onSubmit?.(inputValue);
-    setInputValue("");
-    adjustHeight(true);
+    setInputValue(""); 
+    // KHÔNG CẦN gọi adjustHeight() ở đây nữa
+    // Hook sẽ tự phát hiện value rỗng -> tự co lại
   };
 
   return (
@@ -50,17 +54,20 @@ export function AIInput({
             "text-black dark:text-white text-wrap",
             "overflow-y-auto resize-none",
             "focus-visible:ring-0 focus-visible:ring-offset-0",
-            "transition-[height] duration-100 ease-out",
+            "transition-[height] duration-100 ease-out", // Animation mượt mà
             "leading-[1.2] py-[16px]",
-            `min-h-[${minHeight}px]`,
-            `max-h-[${maxHeight}px]`,
             "[&::-webkit-resizer]:hidden"
           )}
+          style={{
+            minHeight: `${minHeight}px`, // Dùng style inline an toàn hơn class dynamic
+            maxHeight: `${maxHeight}px`
+          }}
+          rows={1}
           ref={textareaRef}
           value={inputValue}
           onChange={(e) => {
             setInputValue(e.target.value);
-            adjustHeight();
+            // KHÔNG CẦN gọi adjustHeight() ở đây
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -69,8 +76,9 @@ export function AIInput({
             }
           }}
         />
-
-        <div
+        
+        {/* ... Phần button icon giữ nguyên ... */}
+         <div
           className={cn(
             "absolute top-1/2 -translate-y-1/2 rounded-xl bg-black/5 dark:bg-white/5 py-1 px-1 transition-all duration-200",
             inputValue ? "right-10" : "right-3"
