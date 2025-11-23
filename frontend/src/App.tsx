@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useRef, useEffect } from "react";
 import { sendPrompt } from "@/lib/api";
 import {
   AIInput,
@@ -13,17 +13,23 @@ import {
   MessageContent,
   TextEffect,
   TextShimmer,
-  ThemeSwitcher
+  ThemeSwitcher,
 } from "@/components/ui";
 import {
   CopyIcon,
   RefreshCcwIcon,
   ThumbsDownIcon,
-  ThumbsUpIcon
+  ThumbsUpIcon,
 } from "lucide-react";
 import { useTheme } from "@/components/providers/theme-provider";
 import humanAvatarSrc from "../icons/human.png";
 import robotAvatarSrc from "../icons/robot.png";
+import {
+  ASSISTANT_NAME,
+  WELCOME_MESSAGE,
+  DESCRIPTION,
+} from "@/components/constants/text";
+import { cn } from "./lib/utils";
 
 type ChatRole = "user" | "assistant";
 
@@ -41,11 +47,8 @@ const createId = () =>
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
 
-const welcomeMessage = "Xin chào, tôi có thể giúp gì cho bạn?";
-
 const assistantAvatar = robotAvatarSrc;
 const userAvatar = humanAvatarSrc;
-const assistantName = "UIT HỎI & ĐÁP";
 
 type AssistantControls = {
   onRetry: () => void;
@@ -59,20 +62,24 @@ type AssistantControls = {
 
 function ConversationMessage({
   message,
-  assistantControls
+  assistantControls,
 }: {
   message: ChatMessage;
   assistantControls?: AssistantControls;
 }) {
   const isAssistant = message.role === "assistant";
   const avatarSrc = isAssistant ? assistantAvatar : userAvatar;
-  const avatarName = isAssistant ? assistantName : "Bạn";
+  const avatarName = isAssistant ? ASSISTANT_NAME : "Bạn";
   const isLiked = assistantControls?.feedbackValue === "like";
   const isDisliked = assistantControls?.feedbackValue === "dislike";
   const shouldShowShimmer = isAssistant && assistantControls?.isRegenerating;
   const renderMessageBody = () => {
     if (!isAssistant) {
-      return <p className="whitespace-pre-line text-sm leading-relaxed">{message.content}</p>;
+      return (
+        <p className="whitespace-pre-line text-sm leading-relaxed">
+          {message.content}
+        </p>
+      );
     }
 
     if (!message.content) {
@@ -95,7 +102,11 @@ function ConversationMessage({
               {line}
             </TextEffect>
           ) : (
-            <span key={`${message.id}-gap-${idx}`} className="block h-2" aria-hidden="true" />
+            <span
+              key={`${message.id}-gap-${idx}`}
+              className="block h-2"
+              aria-hidden="true"
+            />
           )
         )}
       </div>
@@ -114,13 +125,18 @@ function ConversationMessage({
   return (
     <Message
       from={isAssistant ? "assistant" : "user"}
-      className={`flex flex-col gap-2 ${isAssistant ? "items-start" : "items-end"}`}
+      className={`flex flex-col gap-2 ${
+        isAssistant ? "items-start" : "items-end"
+      }`}
     >
       <MessageAvatar src={avatarSrc} name={avatarName} />
       <MessageContent>
         {renderMessageBody()}
         <span className="mt-2 block text-[11px] uppercase tracking-wide text-muted-foreground/70">
-          {new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          {new Date(message.timestamp).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
         </span>
       </MessageContent>
       {isAssistant && assistantControls && (
@@ -132,7 +148,11 @@ function ConversationMessage({
             disabled={assistantControls.retryDisabled}
           >
             <RefreshCcwIcon
-              className={`size-4 ${assistantControls.isRegenerating ? "animate-spin text-foreground" : ""}`}
+              className={`size-4 ${
+                assistantControls.isRegenerating
+                  ? "animate-spin text-foreground"
+                  : ""
+              }`}
             />
           </Action>
           <Action
@@ -187,7 +207,7 @@ function AssistantStatusText({ children }: { children: string }) {
 function AssistantTypingIndicator() {
   return (
     <div className="flex items-center gap-3 py-3 pl-2 text-sm text-muted-foreground">
-      <MessageAvatar src={assistantAvatar} name={assistantName} />
+      <MessageAvatar src={assistantAvatar} name={ASSISTANT_NAME} />
       <AssistantStatusText>Đang chờ phản hồi...</AssistantStatusText>
     </div>
   );
@@ -201,8 +221,27 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [inputInstanceId, setInputInstanceId] = useState(() => createId());
   const [shouldAnimateAnchor, setShouldAnimateAnchor] = useState(false);
-  const [messageFeedback, setMessageFeedback] = useState<Record<string, AssistantFeedback>>({});
-  const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null>(null);
+  const [messageFeedback, setMessageFeedback] = useState<
+    Record<string, AssistantFeedback>
+  >({});
+  const [regeneratingMessageId, setRegeneratingMessageId] = useState<
+    string | null
+  >(null);
+  const [inputHeight, setInputHeight] = useState(0);
+  const inputContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!inputContainerRef.current) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setInputHeight(entry.contentRect.height);
+      }
+    });
+
+    observer.observe(inputContainerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   const handleRestart = () => {
     setMessages([]);
@@ -219,17 +258,20 @@ export default function App() {
     [messages]
   );
 
-  const handleFeedbackToggle = useCallback((messageId: string, value: AssistantFeedback) => {
-    setMessageFeedback((prev) => {
-      const current = prev[messageId];
-      if (current === value) {
-        const next = { ...prev };
-        delete next[messageId];
-        return next;
-      }
-      return { ...prev, [messageId]: value };
-    });
-  }, []);
+  const handleFeedbackToggle = useCallback(
+    (messageId: string, value: AssistantFeedback) => {
+      setMessageFeedback((prev) => {
+        const current = prev[messageId];
+        if (current === value) {
+          const next = { ...prev };
+          delete next[messageId];
+          return next;
+        }
+        return { ...prev, [messageId]: value };
+      });
+    },
+    []
+  );
 
   const handleCopyResponse = useCallback((content: string) => {
     if (!content) return;
@@ -266,7 +308,7 @@ export default function App() {
         id: createId(),
         role: "user",
         content: message,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       if (!hasUserMessage) {
@@ -282,7 +324,7 @@ export default function App() {
           message,
           sessionId,
           toolId: null,
-          imageBase64: null
+          imageBase64: null,
         });
 
         setMessages((prev) => [
@@ -291,11 +333,12 @@ export default function App() {
             id: createId(),
             role: "assistant",
             content: response.content,
-            timestamp: new Date().toISOString()
-          }
+            timestamp: new Date().toISOString(),
+          },
         ]);
       } catch (err) {
-        const detail = err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định.";
+        const detail =
+          err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định.";
         setError(detail);
       } finally {
         setIsSending(false);
@@ -309,7 +352,8 @@ export default function App() {
       if (isSending) return;
 
       const assistantIndex = messages.findIndex(
-        (message) => message.id === assistantMessageId && message.role === "assistant"
+        (message) =>
+          message.id === assistantMessageId && message.role === "assistant"
       );
       if (assistantIndex === -1) return;
 
@@ -343,7 +387,7 @@ export default function App() {
           message: userMessage.content,
           sessionId,
           toolId: null,
-          imageBase64: null
+          imageBase64: null,
         });
 
         setMessages((prev) =>
@@ -352,16 +396,19 @@ export default function App() {
               ? {
                   ...message,
                   content: response.content,
-                  timestamp: new Date().toISOString()
+                  timestamp: new Date().toISOString(),
                 }
               : message
           )
         );
       } catch (err) {
-        const detail = err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định.";
+        const detail =
+          err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định.";
         setError(detail);
         setMessages((prev) =>
-          prev.map((message) => (message.id === assistantMessageId ? previousAssistant : message))
+          prev.map((message) =>
+            message.id === assistantMessageId ? previousAssistant : message
+          )
         );
       } finally {
         setIsSending(false);
@@ -376,99 +423,124 @@ export default function App() {
       <div className="relative flex min-h-screen w-full flex-col text-foreground">
         {!hasUserMessage && (
           <div className="absolute right-4 top-4 z-10">
-            <ThemeSwitcher value={theme} onChange={setTheme} className="shadow-sm" />
+            <ThemeSwitcher
+              value={theme}
+              onChange={setTheme}
+              className="shadow-sm"
+            />
           </div>
         )}
         <main
           className={`flex flex-1 flex-col px-4 transition-all duration-500 sm:px-8 lg:px-16 ${
-            hasUserMessage ? "gap-10 py-8" : "justify-center gap-6 py-6"
+            hasUserMessage ? "gap-10 py-8" : "justify-start gap-6 py-44"
           }`}
         >
-        {!hasUserMessage && (
-          <div className="flex flex-col items-center gap-4 text-center transition-all duration-500">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-              {assistantName}
-            </p>
-            <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">{welcomeMessage}</h1>
-            <p className="max-w-xl text-sm text-muted-foreground sm:text-base">
-              Đặt câu hỏi về chương trình đào tạo, môn học, tín chỉ hay học phần tự chọn của trường UIT.
-              Tôi sẽ cố gắng phản hồi chính xác và ngắn gọn nhất.
-            </p>
-          </div>
-        )}
-
-        {hasUserMessage && (
-          <section className="space-y-6">
-            <header className="flex flex-wrap items-center justify-between gap-4">
-              <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Nhật ký hội thoại ·{" "}
-                <span className="text-base font-semibold text-foreground normal-case">
-                  Phiên #{sessionId.slice(0, 8)}
-                </span>
+          {!hasUserMessage && (
+            <div className="flex flex-col items-center gap-4 text-center transition-all duration-500">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+                {ASSISTANT_NAME}
               </p>
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="text-xs text-muted-foreground">{messages.length} tin nhắn</span>
-                <button
-                  type="button"
-                  onClick={handleRestart}
-                  className="rounded-full bg-foreground/10 px-4 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-foreground/20"
-                >
-                  Bắt đầu lại
-                </button>
-                <ThemeSwitcher value={theme} onChange={setTheme} className="shadow-sm" />
-              </div>
-            </header>
-            <Conversation className="custom-scrollbar h-[60vh] w-full rounded-none border-none bg-transparent sm:h-[65vh] lg:h-[70vh]">
-              <ConversationContent className="flex flex-col gap-2 px-2 sm:px-4">
-                {messages.map((message) => (
-                  <ConversationMessage
-                    key={message.id}
-                    message={message}
-                    assistantControls={
-                      message.role === "assistant"
-                        ? {
-                            onRetry: () => handleRetry(message.id),
-                            onCopy: () => handleCopyResponse(message.content),
-                            onFeedbackChange: (value) => handleFeedbackToggle(message.id, value),
-                            feedbackValue: messageFeedback[message.id] ?? null,
-                            isRegenerating: regeneratingMessageId === message.id,
-                            retryDisabled: isSending,
-                            copyDisabled: !message.content || regeneratingMessageId === message.id
-                          }
-                        : undefined
-                    }
-                  />
-                ))}
-                {isSending && !regeneratingMessageId && <AssistantTypingIndicator />}
-              </ConversationContent>
-              <ConversationScrollButton />
-            </Conversation>
-          </section>
-        )}
-
-        <section
-        
-          className={`w-full space-y-3 transition-all duration-500 ${
-            hasUserMessage ? "mt-auto" : "mx-auto max-w-2xl"
-          } ${shouldAnimateAnchor ? "animate-slide-down-chat" : ""}`}
-        >
-          <AIInput
-            key={inputInstanceId}
-            placeholder="Nhập câu hỏi của bạn..."
-            onSubmit={handleMessageSubmit}
-            className={`w-full transition-all duration-500 ${
-              hasUserMessage ? "" : "max-w-2xl animate-fade-scale"
-            }`}
-          />
-          {error && (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
+              <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">
+                {WELCOME_MESSAGE}
+              </h1>
+              <p className="max-w-xl text-sm text-muted-foreground sm:text-base">
+                {DESCRIPTION}
+              </p>
+            </div>
           )}
-        </section>
-      </main>
+
+          {hasUserMessage && (
+            <section className="space-y-6">
+              <header className="flex flex-wrap items-center justify-between gap-4">
+                <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                  Nhật ký hội thoại ·{" "}
+                  <span className="text-base font-semibold text-foreground normal-case">
+                    Phiên #{sessionId.slice(0, 8)}
+                  </span>
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-xs text-muted-foreground">
+                    {messages.length} tin nhắn
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleRestart}
+                    className="rounded-full bg-foreground/10 px-4 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-foreground/20"
+                  >
+                    Bắt đầu lại
+                  </button>
+                  <ThemeSwitcher
+                    value={theme}
+                    onChange={setTheme}
+                    className="shadow-sm"
+                  />
+                </div>
+              </header>
+              <Conversation className="custom-scrollbar h-[60vh] w-full rounded-none border-none bg-transparent sm:h-[65vh] lg:h-[70vh]">
+                <ConversationContent className="flex flex-col gap-2 px-2 sm:px-4">
+                  {messages.map((message) => (
+                    <ConversationMessage
+                      key={message.id}
+                      message={message}
+                      assistantControls={
+                        message.role === "assistant"
+                          ? {
+                              onRetry: () => handleRetry(message.id),
+                              onCopy: () => handleCopyResponse(message.content),
+                              onFeedbackChange: (value) =>
+                                handleFeedbackToggle(message.id, value),
+                              feedbackValue:
+                                messageFeedback[message.id] ?? null,
+                              isRegenerating:
+                                regeneratingMessageId === message.id,
+                              retryDisabled: isSending,
+                              copyDisabled:
+                                !message.content ||
+                                regeneratingMessageId === message.id,
+                            }
+                          : undefined
+                      }
+                    />
+                  ))}
+                  {isSending && !regeneratingMessageId && (
+                    <AssistantTypingIndicator />
+                  )}
+                </ConversationContent>
+                <ConversationScrollButton
+                  style={{ bottom: `${inputHeight + 16}px` }}
+                />
+              </Conversation>
+            </section>
+          )}
+
+          <section
+            className={`w-full space-y-3 transition-all duration-500 ${
+              hasUserMessage ? "mt-auto" : "mx-auto max-w-2xl"
+            } ${shouldAnimateAnchor ? "animate-slide-down-chat" : ""}`}
+          >
+            <AIInput
+              ref={inputContainerRef}
+              key={inputInstanceId}
+              placeholder="Nhập câu hỏi của bạn..."
+              onSubmit={handleMessageSubmit}
+              className={cn(
+                "w-full transition-all duration-500",
+                hasUserMessage
+                  ? // Khi đang ở chế độ hội thoại
+                    "fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-2xl bg-background/90 backdrop-blur-sm border border-foreground/10 shadow-lg rounded-3xl px-2"
+                  : // Khi đang ở màn hình chào
+                    "mx-auto max-w-2xl animate-fade-scale"
+              )}
+            />
+
+            {error && (
+              <p className="text-sm text-destructive" role="alert">
+                {error}
+              </p>
+            )}
+          </section>
+        </main>
       </div>
     </AuroraBackground>
   );
 }
-
