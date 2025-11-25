@@ -118,7 +118,7 @@ export default function App() {
 
               {/* Vùng có thể cuộn */}
               <div className="flex-1 w-full max-w-2xl overflow-y-auto mx-auto relative min-h-0 pb-16">
-                <Conversation className="h-full rounded-none border-none bg-transparent overflow-y-auto custom-scrollbar">
+                <Conversation className="h-full rounded-none border-none bg-transparent overflow-hidden custom-scrollbar">
                   <ConversationContent className="flex-col gap-2 px-2 sm:px-4 pb-40">
                     {messages.map((message) => (
                       <ConversationMessage
