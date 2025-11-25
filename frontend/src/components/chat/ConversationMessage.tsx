@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   Action,
   Actions,
@@ -8,6 +9,7 @@ import {
   Typewriter,
 } from "@/components/ui";
 import {
+  CheckIcon,
   CopyIcon,
   RefreshCcwIcon,
   ThumbsDownIcon,
@@ -39,12 +41,25 @@ export function ConversationMessage({
   message: ChatMessage;
   assistantControls?: AssistantControls;
 }) {
+  const [isCopied, setIsCopied] = useState(false);
   const isAssistant = message.role === "assistant";
   const avatarSrc = isAssistant ? assistantAvatar : userAvatar;
   const avatarName = isAssistant ? ASSISTANT_NAME : "Bạn";
   const isLiked = assistantControls?.feedbackValue === "like";
   const isDisliked = assistantControls?.feedbackValue === "dislike";
   const shouldShowShimmer = isAssistant && assistantControls?.isRegenerating;
+
+  const handleCopy = () => {
+    assistantControls?.onCopy();
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 3000);
+  };
+
+  useEffect(() => {
+    return () => {
+      setIsCopied(false);
+    };
+  }, [message.id]);
 
   const renderMessageBody = () => {
     if (!isAssistant) {
@@ -100,6 +115,7 @@ export function ConversationMessage({
           <Action
             label="Thử lại"
             tooltip="Thử lại"
+            className="hover:bg-foreground/10"
             onClick={assistantControls.onRetry}
             disabled={assistantControls.retryDisabled}
           >
@@ -117,7 +133,7 @@ export function ConversationMessage({
             className={
               isLiked
                 ? "bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30 dark:bg-emerald-500/25 dark:text-emerald-100 dark:hover:bg-emerald-500/30"
-                : ""
+                : "hover:bg-emerald-500/10 dark:hover:bg-emerald-500/10"
             }
             onClick={() => assistantControls.onFeedbackChange("like")}
           >
@@ -129,19 +145,24 @@ export function ConversationMessage({
             className={
               isDisliked
                 ? "bg-red-500/20 text-red-600 hover:bg-red-500/30 dark:bg-red-500/25 dark:text-red-100 dark:hover:bg-red-500/35"
-                : ""
+                : "hover:bg-red-500/10 dark:hover:bg-red-500/10"
             }
             onClick={() => assistantControls.onFeedbackChange("dislike")}
           >
             <ThumbsDownIcon className="size-4" />
           </Action>
           <Action
-            label="Sao chép"
-            tooltip="Sao chép"
-            onClick={assistantControls.onCopy}
+            label={isCopied ? "Đã sao chép" : "Sao chép"}
+            tooltip={isCopied ? "Đã sao chép" : "Sao chép"}
+            onClick={handleCopy}
             disabled={assistantControls.copyDisabled}
+            className="hover:bg-foreground/10"
           >
-            <CopyIcon className="size-4" />
+            {isCopied ? (
+              <CheckIcon className="size-4" />
+            ) : (
+              <CopyIcon className="size-4" />
+            )}
           </Action>
         </Actions>
       )}

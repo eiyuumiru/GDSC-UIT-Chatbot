@@ -139,17 +139,36 @@ export default function App() {
           )}
         </main>
 
-        {/* Floating Input - Always visible */}
-        <AIInput
-          ref={inputContainerRef}
-          key={inputInstanceId}
-          placeholder="Nhập câu hỏi của bạn..."
-          onSubmit={handleMessageSubmit}
-          className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl bg-background/90 backdrop-blur-sm border border-foreground/10 shadow-lg rounded-3xl px-2"
-        />
-        <p className="text-center fixed bottom-3 left-1/2 -translate-x-1/2 text-[11px] font-medium text-muted-foreground/60">
-          UIT Hỏi&Đáp có thể mắc lỗi, hãy xác minh các thông tin quan trọng.
-        </p>
+        <div
+          className={cn(
+            "fixed left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-4",
+            "flex flex-col items-center gap-2",
+            "transition-all duration-700 ease-in-out",
+            hasUserMessage
+              ? "bottom-6 translate-y-0" // Trạng thái Chat (Dưới đáy)
+              : "bottom-[54vh] translate-y-full" // Trạng thái Ban đầu (Giữa màn hình)
+          )}
+        >
+          <AIInput
+            ref={inputContainerRef}
+            key={inputInstanceId}
+            placeholder="Nhập câu hỏi của bạn..."
+            onSubmit={handleMessageSubmit}
+            buttonAlignment={hasUserMessage ? "bottom" : "top"}
+            className={cn(
+              "w-full rounded-3xl px-0",
+              "transition-all duration-300 ease-out",
+              "bg-background/80 backdrop-blur-md",
+              "border border-foreground/10",
+              "shadow-none",
+              "focus-within:shadow-sm",
+              "focus-within:bg-background/95"
+            )}
+          />
+          <p className="text-center text-[11px] font-medium text-muted-foreground/60 select-none">
+            UIT Hỏi&Đáp có thể mắc lỗi, hãy xác minh các thông tin quan trọng.
+          </p>
+        </div>
       </div>
     </AuroraBackground>
   );

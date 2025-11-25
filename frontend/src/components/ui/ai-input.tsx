@@ -14,6 +14,7 @@ interface AIInputProps {
   maxHeight?: number;
   onSubmit?: (value: string) => void;
   className?: string;
+  buttonAlignment?: "top" | "bottom";
 }
 
 export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
@@ -25,6 +26,7 @@ export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
       maxHeight = 200,
       onSubmit,
       className,
+      buttonAlignment = "bottom",
     },
     ref
   ) {
@@ -42,6 +44,9 @@ export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
       onSubmit?.(inputValue);
       setInputValue("");
     };
+
+    const buttonPositionClass =
+      buttonAlignment === "top" ? "top-4" : "bottom-4";
 
     return (
       <div ref={ref} className={cn("w-full py-4", className)}>
@@ -78,10 +83,11 @@ export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
             }}
           />
 
-          {/* ... Phần button icon giữ nguyên ... */}
+          {/* Dynamic positioned buttons */}
           <div
             className={cn(
-              "absolute top-1/2 -translate-y-1/2 rounded-xl bg-black/5 dark:bg-white/5 py-1 px-1 transition-all duration-200",
+              "absolute rounded-xl bg-black/5 dark:bg-white/5 py-1 px-1 transition-all duration-200",
+              buttonPositionClass,
               inputValue ? "right-10" : "right-3"
             )}
           >
@@ -91,9 +97,10 @@ export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
             onClick={handleReset}
             type="button"
             className={cn(
-              "absolute top-1/2 -translate-y-1/2 right-3",
+              "absolute right-3",
               "rounded-xl bg-black/5 dark:bg-white/5 py-1 px-1",
               "transition-all duration-200",
+              buttonPositionClass,
               inputValue
                 ? "opacity-100 scale-100"
                 : "opacity-0 scale-95 pointer-events-none"
