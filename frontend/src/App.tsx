@@ -96,8 +96,8 @@ export default function App() {
                   />
                 </div>
               </header>
-              <Conversation className="custom-scrollbar h-[60vh] w-full rounded-none border-none bg-transparent sm:h-[65vh] lg:h-[70vh]">
-                <ConversationContent className="flex flex-col gap-2 px-2 sm:px-4">
+              <Conversation className="custom-scrollbar h-[60vh] w-full max-w-2xl mx-auto rounded-none border-none bg-transparent sm:h-[65vh] lg:h-[70vh]">
+                <ConversationContent className="flex flex-col gap-2 px-2 sm:px-4 pb-40">
                   {messages.map((message) => (
                     <ConversationMessage
                       key={message.id}
@@ -128,40 +128,31 @@ export default function App() {
                 </ConversationContent>
                 {inputHeight > 0 && (
                   <ConversationScrollButton
-                    style={{ bottom: `${inputHeight + 100}px` }}
+                    style={{ bottom: `${inputHeight + 88}px` }}
                   />
                 )}
               </Conversation>
             </section>
           )}
-
-          <section
-            className={`w-full space-y-3 transition-all duration-500 ${
-              hasUserMessage ? "mt-auto" : "mx-auto max-w-2xl"
-            } ${shouldAnimateAnchor ? "animate-slide-down-chat" : ""}`}
-          >
-            <AIInput
-              ref={inputContainerRef}
-              key={inputInstanceId}
-              placeholder="Nhập câu hỏi của bạn..."
-              onSubmit={handleMessageSubmit}
-              className={cn(
-                "w-full transition-all duration-500",
-                hasUserMessage
-                  ? // Khi đang ở chế độ hội thoại
-                    "fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-2xl bg-background/90 backdrop-blur-sm border border-foreground/10 shadow-lg rounded-3xl px-2"
-                  : // Khi đang ở màn hình chào
-                    "mx-auto max-w-2xl animate-fade-scale"
-              )}
-            />
-
-            {error && (
-              <p className="text-sm text-destructive" role="alert">
-                {error}
-              </p>
-            )}
-          </section>
         </main>
+
+        {/* Floating Input - Always visible */}
+        <AIInput
+          ref={inputContainerRef}
+          key={inputInstanceId}
+          placeholder="Nhập câu hỏi của bạn..."
+          onSubmit={handleMessageSubmit}
+          className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl bg-background/90 backdrop-blur-sm border border-foreground/10 shadow-lg rounded-3xl px-2"
+        />
+
+        {error && (
+          <p
+            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 text-sm text-destructive"
+            role="alert"
+          >
+            {error}
+          </p>
+        )}
       </div>
     </AuroraBackground>
   );
