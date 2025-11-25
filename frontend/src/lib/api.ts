@@ -33,6 +33,7 @@ export async function sendPrompt(payload: ChatPayload): Promise<ChatResponse> {
   // }
 
   // return response.json();
+  throw new Error("Failed to send prompt");
 
   return new Promise((resolve) => {
     setTimeout(() => {

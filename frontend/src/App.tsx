@@ -5,6 +5,7 @@ import {
   ConversationContent,
   ConversationScrollButton,
   ThemeSwitcher,
+  ErrorPopup,
 } from "@/components/ui";
 import { useTheme } from "@/components/providers/theme-provider";
 import {
@@ -36,10 +37,12 @@ export default function App() {
     handleFeedbackToggle,
     handleMessageSubmit,
     handleRetry,
+    setError,
   } = useChatSession();
 
   return (
     <AuroraBackground className="bg-transparent text-foreground items-stretch justify-start">
+      <ErrorPopup message={error} onClose={() => setError(null)} />
       <div className="relative flex min-h-screen w-full flex-col text-foreground">
         {!hasUserMessage && (
           <div className="absolute right-4 top-4 z-10">
@@ -144,15 +147,9 @@ export default function App() {
           onSubmit={handleMessageSubmit}
           className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl bg-background/90 backdrop-blur-sm border border-foreground/10 shadow-lg rounded-3xl px-2"
         />
-
-        {error && (
-          <p
-            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 text-sm text-destructive"
-            role="alert"
-          >
-            {error}
-          </p>
-        )}
+        <p className="text-center fixed bottom-3 left-1/2 -translate-x-1/2 text-[11px] font-medium text-muted-foreground/60">
+          UIT Hỏi&Đáp có thể mắc lỗi, hãy xác minh các thông tin quan trọng.
+        </p>
       </div>
     </AuroraBackground>
   );

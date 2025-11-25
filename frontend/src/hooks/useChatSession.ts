@@ -200,5 +200,6 @@ export const useChatSession = () => {
     handleFeedbackToggle,
     handleMessageSubmit,
     handleRetry,
+    setError,
   };
 };

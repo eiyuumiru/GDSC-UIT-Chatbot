@@ -10,3 +10,4 @@ export * from "./text-shimmer";
 export * from "./theme-switcher";
 export * from "./aurora-background";
 export * from "./typewriter";
+export * from "./error-popup";
