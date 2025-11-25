@@ -126,9 +126,11 @@ export default function App() {
                     <AssistantTypingIndicator />
                   )}
                 </ConversationContent>
-                <ConversationScrollButton
-                  style={{ bottom: `${inputHeight + 16}px` }}
-                />
+                {inputHeight > 0 && (
+                  <ConversationScrollButton
+                    style={{ bottom: `${inputHeight + 100}px` }}
+                  />
+                )}
               </Conversation>
             </section>
           )}

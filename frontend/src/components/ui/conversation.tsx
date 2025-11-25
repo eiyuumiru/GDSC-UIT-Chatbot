@@ -46,7 +46,7 @@ export const ConversationScrollButton = ({
     !isAtBottom && (
       <Button
         className={cn(
-          "fixed left-[50%] translate-x-[-50%] z-40 rounded-full animate-fade-scale",
+          "fixed inset-x-0 mx-auto z-40 rounded-full",
           className
         )}
         style={style}
