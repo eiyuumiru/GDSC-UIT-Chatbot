@@ -86,9 +86,7 @@ export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                if (isGenerating) {
-                  onStop?.();
-                } else {
+                if (!isGenerating) {
                   handleSubmit();
                 }
               }
