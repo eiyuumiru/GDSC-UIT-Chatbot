@@ -63,7 +63,7 @@ export const useChatSession = () => {
   );
 
   const handleMessageSubmit = useCallback(
-    async (rawValue: string) => {
+    async (rawValue: string, signal?: AbortSignal) => {
       const message = rawValue.trim();
       if (!message || isSending) return;
 
@@ -83,12 +83,15 @@ export const useChatSession = () => {
       setError(null);
 
       try {
-        const response = await sendPrompt({
-          message,
-          sessionId,
-          toolId: null,
-          imageBase64: null,
-        });
+        const response = await sendPrompt(
+          {
+            message,
+            sessionId,
+            toolId: null,
+            imageBase64: null,
+          },
+          signal
+        );
 
         setMessages((prev) => [
           ...prev,
@@ -100,6 +103,10 @@ export const useChatSession = () => {
           },
         ]);
       } catch (err) {
+        // Don't show error for aborted requests
+        if (err instanceof DOMException && err.name === "AbortError") {
+          return;
+        }
         const detail =
           err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định.";
         setError(detail);
@@ -111,7 +118,7 @@ export const useChatSession = () => {
   );
 
   const handleRetry = useCallback(
-    async (assistantMessageId: string) => {
+    async (assistantMessageId: string, signal?: AbortSignal) => {
       if (isSending) return;
 
       const assistantIndex = messages.findIndex(
@@ -146,12 +153,15 @@ export const useChatSession = () => {
       );
 
       try {
-        const response = await sendPrompt({
-          message: userMessage.content,
-          sessionId,
-          toolId: null,
-          imageBase64: null,
-        });
+        const response = await sendPrompt(
+          {
+            message: userMessage.content,
+            sessionId,
+            toolId: null,
+            imageBase64: null,
+          },
+          signal
+        );
 
         setMessages((prev) =>
           prev.map((message) =>
@@ -165,6 +175,15 @@ export const useChatSession = () => {
           )
         );
       } catch (err) {
+        // Don't restore previous message for aborted requests
+        if (err instanceof DOMException && err.name === "AbortError") {
+          setMessages((prev) =>
+            prev.map((message) =>
+              message.id === assistantMessageId ? previousAssistant : message
+            )
+          );
+          return;
+        }
         const detail =
           err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định.";
         setError(detail);

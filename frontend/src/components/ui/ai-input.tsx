@@ -1,6 +1,6 @@
 "use client";
 
-import { CornerRightUp, Mic } from "lucide-react";
+import { CornerRightUp, Mic, Square } from "lucide-react";
 import { useState, forwardRef } from "react";
 
 import { cn } from "@/lib/utils";
@@ -13,6 +13,8 @@ interface AIInputProps {
   minHeight?: number;
   maxHeight?: number;
   onSubmit?: (value: string) => void;
+  onStop?: () => void;
+  isGenerating?: boolean;
   className?: string;
   buttonAlignment?: "top" | "bottom";
 }
@@ -25,6 +27,8 @@ export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
       minHeight = 52,
       maxHeight = 200,
       onSubmit,
+      onStop,
+      isGenerating = false,
       className,
       buttonAlignment = "bottom",
     },
@@ -39,7 +43,11 @@ export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
       value: inputValue,
     });
 
-    const handleReset = () => {
+    const handleSubmit = () => {
+      if (isGenerating) {
+        onStop?.();
+        return;
+      }
       if (!inputValue.trim()) return;
       onSubmit?.(inputValue);
       setInputValue("");
@@ -61,12 +69,12 @@ export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
               "text-black dark:text-white text-wrap",
               "overflow-y-auto resize-none",
               "focus-visible:ring-0 focus-visible:ring-offset-0",
-              "transition-[height] duration-100 ease-out", // Animation mượt mà
+              "transition-[height] duration-100 ease-out",
               "leading-[1.2] py-[16px]",
               "[&::-webkit-resizer]:hidden"
             )}
             style={{
-              minHeight: `${minHeight}px`, // Dùng style inline an toàn hơn class dynamic
+              minHeight: `${minHeight}px`,
               maxHeight: `${maxHeight}px`,
             }}
             rows={1}
@@ -78,7 +86,11 @@ export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                handleReset();
+                if (isGenerating) {
+                  onStop?.();
+                } else {
+                  handleSubmit();
+                }
               }
             }}
           />
@@ -88,25 +100,30 @@ export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
             className={cn(
               "absolute rounded-xl bg-black/5 dark:bg-white/5 py-1 px-1 transition-all duration-200",
               buttonPositionClass,
-              inputValue ? "right-10" : "right-3"
+              inputValue || isGenerating ? "right-11" : "right-3"
             )}
           >
             <Mic className="w-4 h-4 text-black/70 dark:text-white/70" />
           </div>
           <button
-            onClick={handleReset}
+            onClick={handleSubmit}
             type="button"
             className={cn(
               "absolute right-3",
               "rounded-xl bg-black/5 dark:bg-white/5 py-1 px-1",
               "transition-all duration-200",
               buttonPositionClass,
-              inputValue
+              inputValue || isGenerating
                 ? "opacity-100 scale-100"
-                : "opacity-0 scale-95 pointer-events-none"
+                : "opacity-0 scale-95 pointer-events-none",
+              isGenerating && "animate-spin"
             )}
           >
-            <CornerRightUp className="w-4 h-4 text-black/70 dark:text-white/70" />
+            {isGenerating ? (
+              <Square className="w-4 h-4 fill-black dark:fill-white" />
+            ) : (
+              <CornerRightUp className="w-4 h-4 text-black/70 dark:text-white/70" />
+            )}
           </button>
         </div>
       </div>
