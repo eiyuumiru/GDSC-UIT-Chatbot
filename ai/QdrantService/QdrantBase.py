@@ -105,7 +105,9 @@ class QdrantBase:
             raise RuntimeError(f"Failed to delete all points: {e}")
 
     def search(self, query: str, k: int = SEARCH_TOP_K) -> List[Document]:
-        results = self.__vector_store.similarity_search(query, k=k)
+        search_params = models.SearchParams(
+            hnsw_ef=256,
+        )
+        
+        results = self.__vector_store.similarity_search(query, k=k, search_params=search_params, score_threshold=0.3)
         return results
-
-

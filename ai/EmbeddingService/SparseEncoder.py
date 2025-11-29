@@ -2,7 +2,7 @@ from fastembed import SparseTextEmbedding
 from langchain_qdrant import SparseEmbeddings, SparseVector
 
 class FastEmbedSparseEncoder(SparseEmbeddings):
-    MODEL_NAME = "Qdrant/bm42-all-minilm-l6-v2-attentions"
+    MODEL_NAME = "Qdrant/bm25"
     BATCH_SIZE = 32
 
     def __init__(self, model_name: str = MODEL_NAME, batch_size: int = BATCH_SIZE):
