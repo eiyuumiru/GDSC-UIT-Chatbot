@@ -10,8 +10,13 @@ from ..config.FPTCloud import RerankerModelConfig as cfg
 from ..QdrantService.QdrantBase import QdrantBase
 
 class RetrieverService:
-    def __init__(self, model_name = cfg.DEFAULT_MODEL, top_n: int = cfg.DEFAULT_TOP_N, weights: list[float] = [0.85, 0.15], use_server_sparse: bool = True):
-        self.use_server_sparse = use_server_sparse
+    """
+    Service for retrieving and ranking relevant documents from Qdrant vector store.
+    
+    Retrieves candidate documents using hybrid search (dense + sparse vectors),
+    then reranks them using FPT Reranker for optimal relevance.
+    """
+    def __init__(self, model_name = cfg.DEFAULT_MODEL, top_n: int = cfg.DEFAULT_TOP_N):
         self._ENC = self.__init_Encoder()
         self._RERANKER = self.__init_Reranker(model_name=model_name, top_n=top_n)
         self.qdrant = self.__init_Qdrant()

@@ -7,6 +7,7 @@ sys.path.insert(0, str(project_root))
 
 from ai.QdrantService.QdrantBase import QdrantBase
 from ai.QdrantService.loadJSON import load_json
+from ai.GoogleCloud.getBucket import get_bucket
 import dotenv
 
 dotenv.load_dotenv()
@@ -32,18 +33,18 @@ if __name__ == "__main__":
     URL = os.getenv("QDRANT_URL")
     if not API_KEY or not URL:
         raise ValueError("QDRANT_API_KEY and QDRANT_URL must be set in environment variables.")
-
-    # Example usage
+    
+    try:
+        get_bucket("c311")
+    except Exception as e:
+        raise RuntimeError(f"Failed to get GCS bucket: {e}")
+    
     docs = load_json("ai/dataset/CS311")
     qdrant_service = QdrantBase(api_key=API_KEY, url=URL)
     try:
         qdrant_service.delete_all_points()
         qdrant_service.build_index(documents=docs)
         print("Index built successfully.")
-        
-        # Test queries
-        # test_query(qdrant_service, "Khoa học máy tính là gì?")
-        # test_query(qdrant_service, "Điều kiện tốt nghiệp", k=3)
         
     except Exception as e:
         print(f"Failed to build index: {e}")
