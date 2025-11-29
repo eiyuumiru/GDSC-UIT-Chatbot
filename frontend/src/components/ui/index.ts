@@ -9,5 +9,6 @@ export * from "./conversation";
 export * from "./text-shimmer";
 export * from "./theme-switcher";
 export * from "./aurora-background";
-export * from "./typewriter";
-export * from "./error-popup";
+export * from "./text-effect";
+export * from "./text-effect-demo";
+

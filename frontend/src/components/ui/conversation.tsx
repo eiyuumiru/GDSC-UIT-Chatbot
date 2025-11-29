@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -18,14 +18,9 @@ export const Conversation = ({ className, ...props }: ConversationProps) => (
   />
 );
 
-export type ConversationContentProps = ComponentProps<
-  typeof StickToBottom.Content
->;
+export type ConversationContentProps = ComponentProps<typeof StickToBottom.Content>;
 
-export const ConversationContent = ({
-  className,
-  ...props
-}: ConversationContentProps) => (
+export const ConversationContent = ({ className, ...props }: ConversationContentProps) => (
   <StickToBottom.Content className={cn("p-4", className)} {...props} />
 );
 
@@ -33,7 +28,6 @@ export type ConversationScrollButtonProps = ComponentProps<typeof Button>;
 
 export const ConversationScrollButton = ({
   className,
-  style,
   ...props
 }: ConversationScrollButtonProps) => {
   const { isAtBottom, scrollToBottom } = useStickToBottomContext();
@@ -46,10 +40,9 @@ export const ConversationScrollButton = ({
     !isAtBottom && (
       <Button
         className={cn(
-          "fixed inset-x-0 mx-auto z-40 rounded-full",
+          "absolute bottom-4 left-[50%] translate-x-[-50%] rounded-full animate-fade-scale",
           className
         )}
-        style={style}
         onClick={handleScrollToBottom}
         size="icon"
         type="button"
@@ -61,3 +54,5 @@ export const ConversationScrollButton = ({
     )
   );
 };
+
+
