@@ -3,14 +3,11 @@ import os
 from typing import Dict, Any, List
 import json
 import re
-import logging
-from .EmbeddingService.DenseEncoder import get_encoder
-from .Reranker import FPTReranker
+from ..EmbeddingService.DenseEncoder import get_encoder
+from ..Reranker import FPTReranker
 from langchain_core.tools import tool, BaseTool
-from .config.FPTCloud import RerankerModelConfig as cfg
-from .QdrantService.QdrantBase import QdrantBase
-
-logger = logging.getLogger(__name__)
+from ..config.FPTCloud import RerankerModelConfig as cfg
+from ..QdrantService.QdrantBase import QdrantBase
 
 class RetrieverService:
     def __init__(self, model_name = cfg.DEFAULT_MODEL, top_n: int = cfg.DEFAULT_TOP_N, weights: list[float] = [0.85, 0.15], use_server_sparse: bool = True):

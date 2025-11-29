@@ -42,8 +42,8 @@ if __name__ == "__main__":
         print("Index built successfully.")
         
         # Test queries
-        test_query(qdrant_service, "Khoa học máy tính là gì?")
-        test_query(qdrant_service, "Điều kiện tốt nghiệp", k=3)
+        # test_query(qdrant_service, "Khoa học máy tính là gì?")
+        # test_query(qdrant_service, "Điều kiện tốt nghiệp", k=3)
         
     except Exception as e:
         print(f"Failed to build index: {e}")

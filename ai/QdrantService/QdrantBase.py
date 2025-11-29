@@ -13,6 +13,7 @@ class QdrantBase:
     SPARSE_VECTOR_NAME = str(cfg.QDRANT_SPARSE_VECTOR_NAME)
     BATCH_SIZE = cfg.QDRANT_BATCH_SIZE
     UPSERT_BATCH_SIZE = cfg.QDRANT_UPSERT_BATCH_SIZE
+    SEARCH_TOP_K = cfg.QDRANT_SEARCH_TOP_K
 
     def __init__(self, api_key: str, url: str):
         self.api_key = api_key
@@ -103,7 +104,7 @@ class QdrantBase:
         except Exception as e:
             raise RuntimeError(f"Failed to delete all points: {e}")
 
-    def search(self, query: str, k: int = 10) -> List[Document]:
+    def search(self, query: str, k: int = SEARCH_TOP_K) -> List[Document]:
         results = self.__vector_store.similarity_search(query, k=k)
         return results
 
