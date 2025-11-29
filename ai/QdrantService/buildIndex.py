@@ -8,6 +8,7 @@ sys.path.insert(0, str(project_root))
 from ai.QdrantService.QdrantBase import QdrantBase
 from ai.QdrantService.loadJSON import load_json
 from ai.GoogleCloud.getBucket import get_bucket
+from ai.GoogleCloud.cleanJSON import clean_json_folder
 import dotenv
 
 dotenv.load_dotenv()
@@ -38,7 +39,7 @@ if __name__ == "__main__":
         get_bucket("c311")
     except Exception as e:
         raise RuntimeError(f"Failed to get GCS bucket: {e}")
-    
+    clean_json_folder("ai/dataset/CS311", max_workers=4)
     docs = load_json("ai/dataset/CS311")
     qdrant_service = QdrantBase(api_key=API_KEY, url=URL)
     try:

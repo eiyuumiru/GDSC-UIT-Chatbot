@@ -1,6 +1,6 @@
 class GroqLLMConfig:
-    DEFAULT_MODEL_NAME = "llama-3.3-70b-versatile"
-    DEFAULT_TEMPERATURE = 0.2
+    DEFAULT_MODEL_NAME = "openai/gpt-oss-120b"
+    DEFAULT_TEMPERATURE = 0.5
     DEFAULT_TIMEOUT = 30.0
     DEFAULT_MAX_RETRIES = 3
     DEFAULT_FALLBACK_MODEL = {DEFAULT_MODEL_NAME: "openai/gpt-oss-120b"}

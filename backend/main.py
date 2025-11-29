@@ -19,7 +19,6 @@ def _ensure_project_root() -> Path:
         sys.path.insert(0, str(root))
     return root
 
-
 PROJECT_ROOT = _ensure_project_root()
 
 if TYPE_CHECKING:
@@ -42,10 +41,7 @@ def get_llm_service() -> "LLMService":
         raise RuntimeError("Missing GROQ_API_KEY environment variable.")
     return _LLMService(
         groq_api_key=groq_api_key,
-        model=os.getenv("GROQ_MODEL_NAME", "llama-3.3-70b-versatile"),
-        temperature=float(os.getenv("GROQ_TEMPERATURE", "0.5")),
     )
-
 
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1)
