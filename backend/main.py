@@ -40,15 +40,10 @@ def get_llm_service() -> "LLMService":
     groq_api_key = os.getenv("GROQ_API_KEY")
     if not groq_api_key:
         raise RuntimeError("Missing GROQ_API_KEY environment variable.")
-    retriever_cfg: dict[str, Any] = {
-        "model_name": os.getenv("FPT_RERANKER_MODEL", "bge-reranker-v2-m3"),
-        "top_n": int(os.getenv("RETRIEVER_TOP_N", "3")),
-    }
     return _LLMService(
         groq_api_key=groq_api_key,
         model=os.getenv("GROQ_MODEL_NAME", "llama-3.3-70b-versatile"),
         temperature=float(os.getenv("GROQ_TEMPERATURE", "0.5")),
-        retriever_config=retriever_cfg,
     )
 
 
