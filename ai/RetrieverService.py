@@ -4,14 +4,11 @@ from typing import Dict, Any, List
 import json
 import re
 import logging
-from .EmbeddingManager import get_encoder, get_sparse_encoder
-from .Vectors import load_index as load_vec, build_index as build_qdrant_index
-from .Retriever import docs_from_qdrant, make_hybrid_retriever
-from .Loaders import load_markdown
-from .Splitters import split_markdown
+from .EmbeddingService.DenseEncoder import get_encoder
 from .Reranker import FPTReranker
 from langchain_core.tools import tool, BaseTool
 from .config.FPTCloud import RerankerModelConfig as cfg
+from .QdrantService.QdrantBase import QdrantBase
 
 logger = logging.getLogger(__name__)
 
@@ -19,48 +16,26 @@ class RetrieverService:
     def __init__(self, model_name = cfg.DEFAULT_MODEL, top_n: int = cfg.DEFAULT_TOP_N, weights: list[float] = [0.85, 0.15], use_server_sparse: bool = True):
         self.use_server_sparse = use_server_sparse
         self._ENC = self.__init_Encoder()
-        self._SPARSE_ENC = self.__init_SparseEncoder() if use_server_sparse else None
-        if self.use_server_sparse and self._SPARSE_ENC is None:
-            self.use_server_sparse = False
-        self._DB = self.__init_DB()
-        self._CHUNKS_FOR_BM25 = self.__init_ChunksForBM25()
         self._RERANKER = self.__init_Reranker(model_name=model_name, top_n=top_n)
-        self.hybrid_retriever = self.__init_HybridRetriever(weights=weights, k=top_n)
+        self.qdrant = self.__init_Qdrant()
 
-    def __init_DB(self):
-        return load_vec(
-            encoder=self._ENC,
-            sparse_encoder=self._SPARSE_ENC if self.use_server_sparse else None,
+    def __init_Qdrant(self):
+        return QdrantBase(
+            api_key=os.getenv("QDRANT_API_KEY", ""),
+            url=os.getenv("QDRANT_URL", ""),
         )
 
     def __init_Encoder(self):
         return get_encoder()
     
-    def __init_SparseEncoder(self):
-        logger.info("Initializing sparse encoder for server-side hybrid search")
-        return get_sparse_encoder(batch_size=32)
-
-    def __init_ChunksForBM25(self):
-        return docs_from_qdrant(self._DB)
-
     def __init_Reranker(self, model_name: str, top_n: int) -> FPTReranker:
         return FPTReranker(model_name=model_name, top_n=top_n)
     
-    def __init_HybridRetriever(self, weights: list[float] = [0.85, 0.15], k: int = 6):
-        return make_hybrid_retriever(
-            self._CHUNKS_FOR_BM25,
-            self._DB,
-            k=k,
-            weights=weights,
-            use_server_sparse=self.use_server_sparse,
-        )
-
     def _retrieve_impl(self, query: str) -> tuple[str, List[Dict[str, Any]]]:
-        candidate_docs = self.hybrid_retriever.invoke(query)
+        candidate_docs = self.qdrant.search(query, k=5)
         ranked_docs = self._RERANKER.rerank(query=query, documents=candidate_docs)
         results: List[Dict[str, Any]] = [
             {
-                "source": doc.metadata.get("source", ""),
                 "content": doc.page_content,
                 "metadata": dict(doc.metadata or {}),
             }
@@ -75,29 +50,6 @@ def make_retrieve_tool(svc: RetrieverService) -> BaseTool:
         """Retrieve UIT knowledge snippets for the current query."""
         return svc._retrieve_impl(query)
     return _retrieve
-
-
-def build_index(
-    *,
-    data_dir: str = "ai/dataset",
-    collection_name: str | None = None,
-    clear_existing: bool = True,
-    batch_size: int = 64,
-    show_progress: bool = True,
-) -> None:
-    docs = load_markdown(data_dir)
-    encoder = get_encoder()
-    sparse_encoder = get_sparse_encoder()
-    chunks = split_markdown(docs, encoder, show_progress=show_progress)
-    build_qdrant_index(
-        chunks,
-        encoder,
-        sparse_encoder=sparse_encoder,
-        collection_name=collection_name or os.getenv("QDRANT_COLLECTION", "uit_edu"),
-        batch_size=batch_size,
-        show_progress=show_progress,
-        clear_existing=clear_existing,
-    )
 
 class ContextFormatter:
     def __init__(self, max_chars: int = 8000, max_items: int = 6):

@@ -1,6 +1,7 @@
 class QdrantConfig:
-    COLLECTION_NAME = "uit_edu"
+    QDRANT_COLLECTION_NAME = "uit_edu_v2"
+    QDRANT_PREFER_GRPC = True
     QDRANT_VECTOR_NAME = "dense"
     QDRANT_SPARSE_VECTOR_NAME = "sparse"
-    QDRANT_UPSERT_BATCH = 16
-    QDRANT_PREFER_GRPC = True
+    QDRANT_UPSERT_BATCH_SIZE = 16
+    QDRANT_BATCH_SIZE = 64

@@ -16,20 +16,6 @@ def _tokenize(text: str) -> list[str]:
         return []
     return [tok for tok in _TOKEN_PATTERN.findall(text.lower()) if tok]
 
-@dataclass
-class HybridCandidate:
-    doc: Document
-    lexical_rank: int | None = None
-    lexical_score: float | None = None
-    dense_rank: int | None = None
-    dense_score: float | None = None
-    rrf_score: float = 0.0
-    term_hits: int = 0
-    lexical_norm: float = 0.0
-    dense_norm: float = 0.0
-    term_norm: float = 0.0
-    coarse_score: float = 0.0
-
 class TermHitRetriever(BaseRetriever):
     chunks: Sequence[Document]
 

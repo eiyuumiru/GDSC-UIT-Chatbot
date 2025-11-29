@@ -18,14 +18,15 @@ from qdrant_client.models import (
     VectorParams,
 )
 from tqdm import tqdm
+from .config.Qdrant import QdrantConfig as cfg
 
 QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "uit_edu")
 QDRANT_PREFER_GRPC = os.getenv("QDRANT_PREFER_GRPC", "").lower() in {"1", "true", "yes"}
-QDRANT_VECTOR_NAME = os.getenv("QDRANT_VECTOR_NAME", "dense")
-QDRANT_SPARSE_VECTOR_NAME = os.getenv("QDRANT_SPARSE_VECTOR_NAME", "sparse")
-QDRANT_UPSERT_BATCH = max(1, int(os.getenv("QDRANT_UPSERT_BATCH", "16")))
+QDRANT_VECTOR_NAME = os.getenv("QDRANT_VECTOR_NAME", cfg.QDRANT_VECTOR_NAME)
+QDRANT_SPARSE_VECTOR_NAME = os.getenv("QDRANT_SPARSE_VECTOR_NAME", cfg.QDRANT_SPARSE_VECTOR_NAME)
+QDRANT_UPSERT_BATCH = max(1, int(os.getenv("QDRANT_UPSERT_BATCH", str(cfg.QDRANT_UPSERT_BATCH_SIZE))))
 
 
 def _make_client(

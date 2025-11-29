@@ -1,10 +1,9 @@
 ﻿from __future__ import annotations
 import logging
 import os
-from dataclasses import dataclass
 from typing import List
 from langchain_core.embeddings import Embeddings
-from .config.FPTCloud import EmbeddingModelConfig as cfg
+from ..config.FPTCloud import EmbeddingModelConfig as cfg
 from litellm import embedding
 
 logger = logging.getLogger(__name__)
@@ -92,47 +91,6 @@ def get_encoder(
     max_input_tokens: int = cfg.DEFAULT_MAX_INPUT_TOKEN,
 ) -> Embeddings:
     return FPTEmbedding(model_name=model_name)
-
-
-class FastEmbedSparseEncoder:
-
-    @dataclass
-    class SparseVector:
-        indices: List[int]
-        values: List[float]
-
-    def __init__(self, model_name: str = "Qdrant/bm42-all-minilm-l6-v2-attentions", batch_size: int = 32):
-        from fastembed import SparseTextEmbedding
-        self.model = SparseTextEmbedding(model_name=model_name)
-        self.batch_size = batch_size
-
-    def _convert_embedding(self, embedding) -> "FastEmbedSparseEncoder.SparseVector":
-        indices = embedding.indices.tolist()
-        values = embedding.values.tolist()
-        return FastEmbedSparseEncoder.SparseVector(indices=indices, values=values)
-
-    def embed_documents(self, texts: List[str]) -> List["FastEmbedSparseEncoder.SparseVector"]:
-        if not texts:
-            return []
-        results = []
-        for idx in range(0, len(texts), self.batch_size):
-            batch = texts[idx : idx + self.batch_size]
-            for embedding in self.model.embed(batch):
-                results.append(self._convert_embedding(embedding))
-        return results
-
-    def embed_query(self, text: str) -> "FastEmbedSparseEncoder.SparseVector":
-        result = self.embed_documents([text])
-        if result:
-            return result[0]
-        return FastEmbedSparseEncoder.SparseVector(indices=[], values=[])
-
-
-def get_sparse_encoder(
-    model_name: str = "Qdrant/bm42-all-minilm-l6-v2-attentions",
-    batch_size: int = 32,
-) -> FastEmbedSparseEncoder:
-    return FastEmbedSparseEncoder(model_name=model_name, batch_size=batch_size)
 
 #Example usage
 if __name__ == "__main__":
