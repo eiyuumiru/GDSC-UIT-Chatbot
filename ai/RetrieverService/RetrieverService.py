@@ -34,7 +34,7 @@ class RetrieverService:
         return FPTReranker(model_name=model_name, top_n=top_n)
     
     def _retrieve_impl(self, query: str) -> tuple[str, List[Dict[str, Any]]]:
-        candidate_docs = self.qdrant.search(query, k=20)
+        candidate_docs = self.qdrant.search(query, k=10)
         ranked_docs = self._RERANKER.rerank(query=query, documents=candidate_docs)
         results: List[Dict[str, Any]] = [
             {
@@ -42,6 +42,7 @@ class RetrieverService:
             }
             for doc in ranked_docs
         ]
+        print(results)
 
         return query, results
 
