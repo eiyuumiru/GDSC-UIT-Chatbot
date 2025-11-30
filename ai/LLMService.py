@@ -6,7 +6,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_core.prompts import ChatPromptTemplate
 from langgraph.checkpoint.memory import MemorySaver
-from .RetrieverService import ContextFormatter, RetrieverService, make_retrieve_tool
+from .RetrieverService.RetrieverService import ContextFormatter, RetrieverService, make_retrieve_tool
 from .GroqService.GroqBase import GroqBase
 from .config.Groq import GroqLLMConfig as cfg
 from litellm.utils import trim_messages
