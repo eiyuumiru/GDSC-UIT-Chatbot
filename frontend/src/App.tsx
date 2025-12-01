@@ -70,7 +70,7 @@ export default function App() {
 
         <main
           className={cn(
-            "flex flex-1 flex-col px-4 transition-all duration-500 sm:px-8 lg:px-16 min-h-0", // thêm min-h-0
+            "flex flex-1 flex-col px-4 transition-all duration-500 sm:px-6 lg:px-8 min-h-0", // thêm min-h-0
             hasUserMessage ? "gap-10 py-8" : "justify-start gap-6 py-44"
           )}
         >
@@ -105,7 +105,7 @@ export default function App() {
               </header>
 
               {/* Vùng có thể cuộn */}
-              <div className="flex-1 w-full relative min-h-0 pb-28">
+              <div className="flex-1 w-full relative min-h-0 pb-20">
                 <Conversation className="h-full rounded-none border-none bg-transparent custom-scrollbar">
                   <ConversationContent className="flex-col gap-2 px-2 sm:px-4 pb-10">
                     {messages.map((message) => (
@@ -153,7 +153,7 @@ export default function App() {
         {/* Ô nhập cố định */}
         <div
           className={cn(
-            "fixed left-0 z-50 w-full px-4 sm:px-8 lg:px-16",
+            "fixed left-0 z-50 w-full px-4 sm:px-6 lg:px-8",
             "flex flex-col items-center gap-2",
             "transition-all duration-500 ease-in-out",
             hasUserMessage
