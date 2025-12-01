@@ -32,3 +32,7 @@ Thumbs.db
 tmp_*.py
 
 .index/
+
+.CS311/
+CS311/
+output/
