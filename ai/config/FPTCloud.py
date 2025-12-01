@@ -20,4 +20,4 @@ class RerankerModelConfig(FPTCloudConfig):
     DEFAULT_TIMEOUT = 30.0
     DEFAULT_MAX_DOCS = 200
     DEFAULT_MAX_CHARS = 120_000
-    DEFAULT_TOP_N = 3
+    DEFAULT_TOP_N = 5
