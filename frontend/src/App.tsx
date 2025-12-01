@@ -105,9 +105,9 @@ export default function App() {
               </header>
 
               {/* Vùng có thể cuộn */}
-              <div className="flex-1 w-full max-w-2xl overflow-y-auto mx-auto relative min-h-0 pb-16">
-                <Conversation className="h-full rounded-none border-none bg-transparent overflow-hidden custom-scrollbar">
-                  <ConversationContent className="flex-col gap-2 px-2 sm:px-4 pb-40">
+              <div className="flex-1 w-full relative min-h-0 pb-28">
+                <Conversation className="h-full rounded-none border-none bg-transparent custom-scrollbar">
+                  <ConversationContent className="flex-col gap-2 px-2 sm:px-4 pb-10">
                     {messages.map((message) => (
                       <ConversationMessage
                         key={message.id}
@@ -153,11 +153,11 @@ export default function App() {
         {/* Ô nhập cố định */}
         <div
           className={cn(
-            "fixed left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-4",
+            "fixed left-0 z-50 w-full px-4 sm:px-8 lg:px-16",
             "flex flex-col items-center gap-2",
             "transition-all duration-500 ease-in-out",
             hasUserMessage
-              ? "bottom-6 translate-y-0"
+              ? "bottom-3 translate-y-0"
               : "bottom-1/2 translate-y-1/2"
           )}
         >
@@ -166,7 +166,7 @@ export default function App() {
               "flex flex-col items-center gap-4 text-center transition-all duration-300 ease-in-out",
               hasUserMessage
                 ? "opacity-0 translate-y-4 pointer-events-none h-0 overflow-hidden"
-                : "opacity-100 translate-y-0 h-auto mb-8 delay-100"
+                : "opacity-100 translate-y-0 h-auto mb-5 delay-100"
             )}
           >
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
@@ -188,12 +188,12 @@ export default function App() {
             isGenerating={isSending}
             buttonAlignment={hasUserMessage ? "bottom" : "top"}
             className={cn(
-              "w-full rounded-3xl px-0",
+              "w-full rounded-3xl px-0 pb-0 pt-0",
               "transition-all duration-300 ease-out"
             )}
           />
           <p className="text-center text-[11px] font-medium text-muted-foreground/60 select-none">
-            UIT Hỏi&Đáp có thể mắc lỗi, hãy xác minh các thông tin quan trọng.
+            UIT Hỏi & Đáp có thể mắc lỗi, hãy xác minh các thông tin quan trọng.
           </p>
         </div>
       </div>

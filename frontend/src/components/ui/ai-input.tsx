@@ -1,6 +1,6 @@
 "use client";
 
-import { CornerRightUp, Mic, Square } from "lucide-react";
+import { CornerRightUp, Square } from "lucide-react";
 import { useState, forwardRef } from "react";
 
 import { cn } from "@/lib/utils";
@@ -54,7 +54,7 @@ export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
     };
 
     const buttonPositionClass =
-      buttonAlignment === "top" ? "top-4" : "bottom-4";
+      buttonAlignment === "top" ? "top-3.5" : "bottom-3.5";
 
     return (
       <div ref={ref} className={cn("w-full py-4", className)}>
@@ -94,15 +94,7 @@ export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
           />
 
           {/* Dynamic positioned buttons */}
-          <div
-            className={cn(
-              "absolute rounded-xl bg-black/5 dark:bg-white/5 transition-all duration-200 w-6 h-6 flex items-center justify-center",
-              buttonPositionClass,
-              inputValue || isGenerating ? "right-11" : "right-3"
-            )}
-          >
-            <Mic className="w-4 h-4 text-black/70 dark:text-white/70" />
-          </div>
+
           <button
             onClick={handleSubmit}
             type="button"

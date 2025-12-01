@@ -1,6 +1,6 @@
 import { MessageAvatar, TextShimmer } from "@/components/ui";
 import { ASSISTANT_NAME } from "@/components/constants/text";
-import humanAvatarSrc from "../../../icons/human.png";
+
 import robotAvatarSrc from "../../../icons/robot.png";
 
 const assistantAvatar = robotAvatarSrc;

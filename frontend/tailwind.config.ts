@@ -12,6 +12,8 @@ const addVariablesForColors = ({ addBase, theme }: any) => {
   });
 };
 
+import typography from "@tailwindcss/typography";
+
 const config: Config = {
   darkMode: ["class"],
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
@@ -57,7 +59,7 @@ const config: Config = {
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-scale": "fade-scale 0.2s ease-out",
         "slide-down-chat": "slide-down-chat 0.6s ease-out forwards",
-        aurora: "aurora 60s linear infinite"
+        "aurora": "aurora 60s linear infinite"
       },
       keyframes: {
         "accordion-down": {
@@ -88,7 +90,7 @@ const config: Config = {
             transform: "translateY(0)"
           }
         },
-        aurora: {
+        "aurora": {
           from: {
             backgroundPosition: "50% 50%, 50% 50%"
           },
@@ -104,7 +106,7 @@ const config: Config = {
       }
     }
   },
-  plugins: [addVariablesForColors]
+  plugins: [addVariablesForColors, typography]
 };
 
 export default config;

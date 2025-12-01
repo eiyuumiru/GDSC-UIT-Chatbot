@@ -6,7 +6,7 @@ import {
   MessageAvatar,
   MessageContent,
   TextShimmer,
-  Typewriter,
+  MarkdownRenderer,
 } from "@/components/ui";
 import {
   CheckIcon,
@@ -64,9 +64,11 @@ export function ConversationMessage({
   const renderMessageBody = () => {
     if (!isAssistant) {
       return (
-        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-          {message.content}
-        </p>
+        <MarkdownRenderer
+          content={message.content}
+          className="break-words text-sm"
+          proseClass="prose-invert dark:prose-neutral"
+        />
       );
     }
 
@@ -76,9 +78,9 @@ export function ConversationMessage({
 
     return (
       <div className="space-y-1.5">
-        <Typewriter
+        <MarkdownRenderer
           content={message.content}
-          className="whitespace-pre-wrap break-words text-sm leading-relaxed font-medium text-left text-foreground tracking-normal"
+          className="break-words text-sm text-left text-foreground"
         />
       </div>
     );
@@ -96,9 +98,8 @@ export function ConversationMessage({
   return (
     <Message
       from={isAssistant ? "assistant" : "user"}
-      className={`flex flex-col gap-2 ${
-        isAssistant ? "items-start" : "items-end"
-      }`}
+      className={`flex flex-col gap-2 ${isAssistant ? "items-start" : "items-end"
+        }`}
     >
       <MessageAvatar src={avatarSrc} name={avatarName} />
       <MessageContent>
@@ -120,11 +121,10 @@ export function ConversationMessage({
             disabled={assistantControls.retryDisabled}
           >
             <RefreshCcwIcon
-              className={`size-4 ${
-                assistantControls.isRegenerating
-                  ? "animate-spin text-foreground"
-                  : ""
-              }`}
+              className={`size-4 ${assistantControls.isRegenerating
+                ? "animate-spin text-foreground"
+                : ""
+                }`}
             />
           </Action>
           <Action
