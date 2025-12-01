@@ -65,10 +65,10 @@ export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
             className={cn(
               "max-w-xl bg-black/5 dark:bg-white/5 rounded-3xl pl-6 pr-16",
               "placeholder:text-black/50 dark:placeholder:text-white/50",
-              "border-none ring-black/20 dark:ring-white/20",
+              "border-none",
               "text-black dark:text-white text-wrap",
               "overflow-y-auto resize-none",
-              "focus-visible:ring-0 focus-visible:ring-offset-0",
+              "focus-visible:ring-0 focus-visible:ring-offset-0 !focus-visible:ring-0 !focus-visible:ring-offset-0 !border-none",
               "transition-[height] duration-100 ease-out",
               "leading-[1.2] py-[16px]",
               "[&::-webkit-resizer]:hidden"
@@ -96,7 +96,7 @@ export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
           {/* Dynamic positioned buttons */}
           <div
             className={cn(
-              "absolute rounded-xl bg-black/5 dark:bg-white/5 py-1 px-1 transition-all duration-200",
+              "absolute rounded-xl bg-black/5 dark:bg-white/5 transition-all duration-200 w-6 h-6 flex items-center justify-center",
               buttonPositionClass,
               inputValue || isGenerating ? "right-11" : "right-3"
             )}
@@ -108,17 +108,15 @@ export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
             type="button"
             className={cn(
               "absolute right-3",
-              "rounded-xl bg-black/5 dark:bg-white/5 py-1 px-1",
-              "transition-all duration-200",
+              "rounded-xl bg-black/5 dark:bg-white/5 transition-all duration-200 w-6 h-6 flex items-center justify-center",
               buttonPositionClass,
               inputValue || isGenerating
                 ? "opacity-100 scale-100"
-                : "opacity-0 scale-95 pointer-events-none",
-              isGenerating && "animate-spin"
+                : "opacity-0 scale-95 pointer-events-none"
             )}
           >
             {isGenerating ? (
-              <Square className="w-4 h-4 fill-black dark:fill-white" />
+              <Square className="w-2.5 h-2.5 fill-black dark:fill-white animate-pulse" />
             ) : (
               <CornerRightUp className="w-4 h-4 text-black/70 dark:text-white/70" />
             )}

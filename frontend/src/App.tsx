@@ -74,19 +74,7 @@ export default function App() {
             hasUserMessage ? "gap-10 py-8" : "justify-start gap-6 py-44"
           )}
         >
-          {!hasUserMessage && (
-            <div className="flex flex-col items-center gap-4 text-center transition-all duration-500">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-                {ASSISTANT_NAME}
-              </p>
-              <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">
-                {WELCOME_MESSAGE}
-              </h1>
-              <p className="max-w-xl text-sm text-muted-foreground sm:text-base">
-                {DESCRIPTION}
-              </p>
-            </div>
-          )}
+
 
           {hasUserMessage && (
             <section className="flex flex-col flex-1 w-full min-h-0 space-y-6">
@@ -127,20 +115,20 @@ export default function App() {
                         assistantControls={
                           message.role === "assistant"
                             ? {
-                                onRetry: () => handleRetry(message.id),
-                                onCopy: () =>
-                                  handleCopyResponse(message.content),
-                                onFeedbackChange: (value) =>
-                                  handleFeedbackToggle(message.id, value),
-                                feedbackValue:
-                                  messageFeedback[message.id] ?? null,
-                                isRegenerating:
-                                  regeneratingMessageId === message.id,
-                                retryDisabled: isSending,
-                                copyDisabled:
-                                  !message.content ||
-                                  regeneratingMessageId === message.id,
-                              }
+                              onRetry: () => handleRetry(message.id),
+                              onCopy: () =>
+                                handleCopyResponse(message.content),
+                              onFeedbackChange: (value) =>
+                                handleFeedbackToggle(message.id, value),
+                              feedbackValue:
+                                messageFeedback[message.id] ?? null,
+                              isRegenerating:
+                                regeneratingMessageId === message.id,
+                              retryDisabled: isSending,
+                              copyDisabled:
+                                !message.content ||
+                                regeneratingMessageId === message.id,
+                            }
                             : undefined
                         }
                       />
@@ -167,12 +155,30 @@ export default function App() {
           className={cn(
             "fixed left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-4",
             "flex flex-col items-center gap-2",
-            "transition-all duration-700 ease-in-out",
+            "transition-all duration-500 ease-in-out",
             hasUserMessage
               ? "bottom-6 translate-y-0"
-              : "bottom-[54vh] translate-y-full"
+              : "bottom-1/2 translate-y-1/2"
           )}
         >
+          <div
+            className={cn(
+              "flex flex-col items-center gap-4 text-center transition-all duration-300 ease-in-out",
+              hasUserMessage
+                ? "opacity-0 translate-y-4 pointer-events-none h-0 overflow-hidden"
+                : "opacity-100 translate-y-0 h-auto mb-8 delay-100"
+            )}
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+              {ASSISTANT_NAME}
+            </p>
+            <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">
+              {WELCOME_MESSAGE}
+            </h1>
+            <p className="max-w-xl text-sm text-muted-foreground sm:text-base">
+              {DESCRIPTION}
+            </p>
+          </div>
           <AIInput
             ref={inputContainerRef}
             key={inputInstanceId}
@@ -183,12 +189,7 @@ export default function App() {
             buttonAlignment={hasUserMessage ? "bottom" : "top"}
             className={cn(
               "w-full rounded-3xl px-0",
-              "transition-all duration-300 ease-out",
-              "bg-background/80 backdrop-blur-md",
-              "border border-foreground/10",
-              "shadow-none",
-              "focus-within:shadow-sm",
-              "focus-within:bg-background/95"
+              "transition-all duration-300 ease-out"
             )}
           />
           <p className="text-center text-[11px] font-medium text-muted-foreground/60 select-none">
