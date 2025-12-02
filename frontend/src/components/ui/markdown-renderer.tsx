@@ -1,5 +1,10 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeRaw from "rehype-raw";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
+import { useMemo } from "react";
 
 interface MarkdownRendererProps {
     content: string;
@@ -8,10 +13,17 @@ interface MarkdownRendererProps {
 }
 
 export function MarkdownRenderer({ content, className = "", proseClass = "prose-neutral dark:prose-invert" }: MarkdownRendererProps) {
+    const processedContent = useMemo(() => {
+        return content
+            .replace(/\\\[([\s\S]*?)\\\]/g, '$$$$$1$$$$') // Replace \[ ... \] with $$ ... $$
+            .replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$$');   // Replace \( ... \) with $ ... $
+    }, [content]);
+
     return (
         <div className={`prose ${proseClass} max-w-none ${className}`}>
             <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
+                remarkPlugins={[remarkGfm, remarkMath]}
+                rehypePlugins={[rehypeRaw, rehypeKatex]}
                 components={{
                     // Customize components if needed
                     p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
@@ -22,7 +34,7 @@ export function MarkdownRenderer({ content, className = "", proseClass = "prose-
                     ),
                 }}
             >
-                {content}
+                {processedContent}
             </ReactMarkdown>
         </div>
     );
