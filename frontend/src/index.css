@@ -80,6 +80,20 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 0;
-  height: 0;
+  /* Định nghĩa độ dày/rộng của thanh cuộn */
+  width: 8px; 
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  /* Định nghĩa màu sắc và hình dạng của "cục nắm" (thumb/trượt) */
+  background-color: var(--muted-foreground-opacity-50); /* Màu xám nhạt/mờ */
+  border-radius: 10px;
+  border: 2px solid transparent;
+  /* Nếu cần làm đẹp hơn: hover style */
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  /* Định nghĩa phần "đường ray" (track) phía sau */
+  background-color: transparent; 
 }

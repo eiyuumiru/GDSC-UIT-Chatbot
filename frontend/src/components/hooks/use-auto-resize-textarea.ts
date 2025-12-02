@@ -1,45 +1,44 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 
 interface UseAutoResizeTextareaProps {
   minHeight: number;
   maxHeight?: number;
+  value?: string; // <--- Bắt buộc có cái này để theo dõi
 }
 
 export function useAutoResizeTextarea({
   minHeight,
-  maxHeight
+  maxHeight,
+  value,
 }: UseAutoResizeTextareaProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const adjustHeight = useCallback(
-    (reset?: boolean) => {
-      const textarea = textareaRef.current;
-      if (!textarea) return;
-
-      if (reset) {
-        textarea.style.height = `${minHeight}px`;
-        return;
-      }
-
-      textarea.style.height = `${minHeight}px`;
-
-      const newHeight = Math.max(
-        minHeight,
-        Math.min(textarea.scrollHeight, maxHeight ?? Number.POSITIVE_INFINITY)
-      );
-
-      textarea.style.height = `${newHeight}px`;
-    },
-    [minHeight, maxHeight]
-  );
-
-  useEffect(() => {
+  const adjustHeight = useCallback(() => {
     const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = `${minHeight}px`;
-    }
-  }, [minHeight]);
+    if (!textarea) return;
 
+    textarea.style.height = "auto"; // Reset để tính toán lại
+
+    // Tính toán border để đảm bảo chính xác từng pixel
+    const computedStyle = window.getComputedStyle(textarea);
+    const borderTop = parseFloat(computedStyle.borderTopWidth) || 0;
+    const borderBottom = parseFloat(computedStyle.borderBottomWidth) || 0;
+    const borderTotal = borderTop + borderBottom;
+
+    const newHeight = Math.max(
+      minHeight,
+      Math.min(textarea.scrollHeight + borderTotal, maxHeight ?? Number.POSITIVE_INFINITY)
+    );
+
+    textarea.style.height = `${newHeight}px`;
+  }, [minHeight, maxHeight]);
+
+  // Tự động điều chỉnh khi value thay đổi
+  useLayoutEffect(() => {
+    adjustHeight();
+  }, [value, adjustHeight]); // <--- Dependency quan trọng nhất
+
+  // Resize khi cửa sổ thay đổi
   useEffect(() => {
     const handleResize = () => adjustHeight();
     window.addEventListener("resize", handleResize);
@@ -48,5 +47,3 @@ export function useAutoResizeTextarea({
 
   return { textareaRef, adjustHeight };
 }
-
-

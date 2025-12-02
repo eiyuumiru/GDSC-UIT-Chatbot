@@ -11,9 +11,13 @@ export type ChatResponse = {
 };
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "http://localhost:8000";
+  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ||
+  "http://localhost:8000";
 
-export async function sendPrompt(payload: ChatPayload): Promise<ChatResponse> {
+export async function sendPrompt(
+  payload: ChatPayload,
+  signal?: AbortSignal
+): Promise<ChatResponse> {
   const response = await fetch(`${API_BASE_URL}/chat`, {
     method: "POST",
     headers: {
@@ -24,7 +28,8 @@ export async function sendPrompt(payload: ChatPayload): Promise<ChatResponse> {
       session_id: payload.sessionId,
       tool_id: payload.toolId ?? null,
       image_base64: payload.imageBase64 ?? null
-    })
+    }),
+    signal
   });
 
   if (!response.ok) {
@@ -34,4 +39,3 @@ export async function sendPrompt(payload: ChatPayload): Promise<ChatResponse> {
 
   return response.json();
 }
-
