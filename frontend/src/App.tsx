@@ -70,11 +70,23 @@ export default function App() {
 
         <main
           className={cn(
-            "flex flex-1 flex-col px-4 transition-all duration-500 sm:px-6 lg:px-8 min-h-0", // thêm min-h-0
-            hasUserMessage ? "gap-10 py-8" : "justify-start gap-6 py-44"
+            "flex flex-1 flex-col px-4 transition-all duration-500 sm:px-8 lg:px-16 min-h-0", // thêm min-h-0
+            hasUserMessage ? "gap-10 py-8" : "justify-center gap-2 pb-36"
           )}
         >
-
+          {!hasUserMessage && (
+            <div className="flex flex-col items-center gap-4 text-center transition-all duration-500">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+                {ASSISTANT_NAME}
+              </p>
+              <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">
+                {WELCOME_MESSAGE}
+              </h1>
+              <p className="max-w-xl text-sm text-muted-foreground sm:text-base">
+                {DESCRIPTION}
+              </p>
+            </div>
+          )}
 
           {hasUserMessage && (
             <section className="flex flex-col flex-1 w-full min-h-0 space-y-6">
@@ -105,9 +117,12 @@ export default function App() {
               </header>
 
               {/* Vùng có thể cuộn */}
-              <div className="flex-1 w-full relative min-h-0 pb-20">
-                <Conversation className="h-full rounded-none border-none bg-transparent custom-scrollbar">
-                  <ConversationContent className="flex-col gap-2 px-2 sm:px-4 pb-10">
+              <div className="flex-1 w-full max-w-7xl overflow-y-auto mx-auto relative min-h-0 pb-16">
+                <Conversation
+                  key={sessionId}
+                  className="h-full rounded-none border-none bg-transparent overflow-hidden custom-scrollbar"
+                >
+                  <ConversationContent className="flex-col gap-2 px-2 sm:px-4 pb-40">
                     {messages.map((message) => (
                       <ConversationMessage
                         key={message.id}
@@ -115,20 +130,20 @@ export default function App() {
                         assistantControls={
                           message.role === "assistant"
                             ? {
-                              onRetry: () => handleRetry(message.id),
-                              onCopy: () =>
-                                handleCopyResponse(message.content),
-                              onFeedbackChange: (value) =>
-                                handleFeedbackToggle(message.id, value),
-                              feedbackValue:
-                                messageFeedback[message.id] ?? null,
-                              isRegenerating:
-                                regeneratingMessageId === message.id,
-                              retryDisabled: isSending,
-                              copyDisabled:
-                                !message.content ||
-                                regeneratingMessageId === message.id,
-                            }
+                                onRetry: () => handleRetry(message.id),
+                                onCopy: () =>
+                                  handleCopyResponse(message.content),
+                                onFeedbackChange: (value) =>
+                                  handleFeedbackToggle(message.id, value),
+                                feedbackValue:
+                                  messageFeedback[message.id] ?? null,
+                                isRegenerating:
+                                  regeneratingMessageId === message.id,
+                                retryDisabled: isSending,
+                                copyDisabled:
+                                  !message.content ||
+                                  regeneratingMessageId === message.id,
+                              }
                             : undefined
                         }
                       />
@@ -141,61 +156,37 @@ export default function App() {
 
                   {inputHeight > 0 && (
                     <ConversationScrollButton
-                      style={{ bottom: `${inputHeight + 88}px` }}
+                      style={{ bottom: `${inputHeight + 48}px` }}
                     />
                   )}
                 </Conversation>
               </div>
             </section>
           )}
-        </main>
 
-        {/* Ô nhập cố định */}
-        <div
-          className={cn(
-            "fixed left-0 z-50 w-full px-4 sm:px-6 lg:px-8",
-            "flex flex-col items-center gap-2",
-            "transition-all duration-500 ease-in-out",
-            hasUserMessage
-              ? "bottom-3 translate-y-0"
-              : "bottom-1/2 translate-y-1/2"
-          )}
-        >
+          {/* Ô nhập cố định */}
           <div
             className={cn(
-              "flex flex-col items-center gap-4 text-center transition-all duration-300 ease-in-out",
-              hasUserMessage
-                ? "opacity-0 translate-y-4 pointer-events-none h-0 overflow-hidden"
-                : "opacity-100 translate-y-0 h-auto mb-5 delay-100"
+              "fixed left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-4",
+              "flex flex-col items-center gap-1",
+              "transition-all duration-700 ease-in-out",
+              hasUserMessage ? "bottom-2 translate-y-0" : "top-1/2"
             )}
           >
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-              {ASSISTANT_NAME}
-            </p>
-            <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">
-              {WELCOME_MESSAGE}
-            </h1>
-            <p className="max-w-xl text-sm text-muted-foreground sm:text-base">
-              {DESCRIPTION}
+            <AIInput
+              ref={inputContainerRef}
+              key={inputInstanceId}
+              placeholder="Nhập câu hỏi của bạn..."
+              onSubmit={handleMessageSubmitWithAbort}
+              onStop={handleStop}
+              isGenerating={isSending}
+              buttonAlignment={hasUserMessage ? "bottom" : "top"}
+            />
+            <p className="text-center bottom-1 text-[11px] font-medium text-muted-foreground/60 select-none">
+              UIT Hỏi&Đáp có thể mắc lỗi, hãy xác minh các thông tin quan trọng.
             </p>
           </div>
-          <AIInput
-            ref={inputContainerRef}
-            key={inputInstanceId}
-            placeholder="Nhập câu hỏi của bạn..."
-            onSubmit={handleMessageSubmitWithAbort}
-            onStop={handleStop}
-            isGenerating={isSending}
-            buttonAlignment={hasUserMessage ? "bottom" : "top"}
-            className={cn(
-              "w-full rounded-3xl px-0 pb-0 pt-0",
-              "transition-all duration-300 ease-out"
-            )}
-          />
-          <p className="text-center text-[11px] font-medium text-muted-foreground/60 select-none">
-            UIT Hỏi & Đáp có thể mắc lỗi, hãy xác minh các thông tin quan trọng.
-          </p>
-        </div>
+        </main>
       </div>
     </AuroraBackground>
   );

@@ -57,13 +57,14 @@ export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
       buttonAlignment === "top" ? "top-3.5" : "bottom-3.5";
 
     return (
-      <div ref={ref} className={cn("w-full py-4", className)}>
+      <div ref={ref} className={cn("w-full py-2", className)}>
         <div className="relative max-w-xl w-full mx-auto">
           <Textarea
             id={id}
             placeholder={placeholder}
             className={cn(
-              "max-w-xl bg-black/5 dark:bg-white/5 rounded-3xl pl-6 pr-16",
+              "max-w-2xl bg-black/5 dark:bg-white/5 rounded-3xl pl-6 pr-16",
+              "backdrop-blur-md",
               "placeholder:text-black/50 dark:placeholder:text-white/50",
               "border-none",
               "text-black dark:text-white text-wrap",
