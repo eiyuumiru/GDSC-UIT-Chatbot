@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from uuid import uuid4
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -73,16 +73,15 @@ async def healthcheck():
 
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(payload: ChatRequest):
-    try:
-        service = get_llm_service()
-    except RuntimeError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-
+async def chat(
+    payload: ChatRequest,
+    service: "LLMService" = Depends(get_llm_service),
+):
     try:
         result = await run_in_threadpool(service, payload.message, payload.session_id)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        print(f"Error processing chat request: {exc}")
+        raise HTTPException(status_code=500, detail="Internal Server Error") from exc
 
     messages = result.get("messages") if isinstance(result, dict) else None
     if messages:
