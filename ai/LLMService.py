@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 from langgraph.constants import END, START
 from langgraph.graph import MessagesState, StateGraph
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import MemorySaver
 from .Agent.SearchAgent.TavilyService import TavilyService, make_tavily_tool
@@ -92,13 +92,17 @@ class LLMService():
         question = _get_last_user_question(state)
         messages = GURADRAIL_ANSWER_PROMPT.format_messages(
             question=question,
+            user_query=question,
         )
         response = self.llm.invoke(messages)
-        classification = str(response.content or "").strip().upper()
-        
-        if "NEEDS_INFO" in classification:
-            return {"messages": [], "route": "needs_info"}
-        else: return {"messages": [], "route": "small_talk"}
+        cls = str(response.content or "").strip().lower().replace(" ", "_")
+        if "small_talk" in cls:
+            route = "small_talk"
+        elif "need_info" in cls:
+            route = "need_info"
+        else:
+            route = "small_talk"  # default to small_talk when unclear
+        return {"messages": [], "route": route}
     
     def __planner(self, state: MessagesState):
         """Planner (LLM Agent): Quyết định tools nào cần dùng (parallel calling)"""
@@ -115,8 +119,9 @@ class LLMService():
     def __generator(self, state: MessagesState):
         """Generator: Gen câu trả lời cuối cùng từ LLM (có/không context)"""
         question = _get_last_user_question(state)
+        route = state.get("route")
                 
-        if not state.get("route") == "needs_info":
+        if route == "small_talk":
             messages = SMALL_TALK_ANSWER_PROMPT.format_messages(
                 question=question,
             )
@@ -142,7 +147,7 @@ class LLMService():
 
     def __route_after_guardrail(self, state: MessagesState) -> str:
         """Routing function: quyết định flow sau Guardrail"""
-        route = state.get("route", "needs_info")
+        route = state.get("route", "need_info")
         return "generator" if route == "small_talk" else "planner" 
 
     def __init_Graph(self):

@@ -90,46 +90,46 @@ trình và các quy định liên quan đến UIT.
 
 ANSWER_HUMAN_TEMPLATE_MD: str = """
 ### Ngữ cảnh hội thoại gần đây
-
-```text
 {history}
-```
 
-### Dữ liệu tham chiếu (có thể trống)
+### Dữ liệu tham chiếu từ hệ thống (có thể trống):
+Các đoạn dưới đây là thông tin thật được trích từ các website UIT.
+Mỗi mục bao gồm:
+- content: đoạn mô tả hoặc trích dẫn nội dung.
+- metadata.source: URL gốc.
+- metadata.title: tiêu đề (nếu có).
 
-```markdown
 {contexts}
-```
 
-### Câu hỏi hiện tại
-
+### Câu hỏi người dùng
 {question}
 
 ---
 
-### Nhiệm vụ
+### Nhiệm vụ của bạn
+Dựa trên CẢ:
+- Ngữ cảnh hội thoại
+- Dữ liệu tham chiếu (contexts)
 
-Dựa trên ngữ cảnh hội thoại và dữ liệu tham chiếu ở trên, hãy trả lời
-**duy nhất** câu hỏi hiện tại bằng **tiếng Việt chuẩn và rõ ràng**.
+Hãy trả lời câu hỏi người dùng bằng tiếng Việt, rõ ràng, không suy diễn.
 
-### Yêu cầu suy luận nội bộ
+Bạn BẮT BUỘC phải tuân thủ:
+1. Chỉ được dùng các URL xuất hiện trong metadata.source của contexts.
+2. Không được tự tạo, dự đoán hoặc bịa URL mới.
+3. Nếu người dùng yêu cầu link → chỉ được trả về link có trong contexts.
+4. Nếu contexts có nhiều link → chọn link LIÊN QUAN NHẤT.
+5. Nếu contexts rỗng → nói "Không tìm thấy dữ liệu phù hợp trong hệ thống, xin vui lòng hỏi lại theo cách khác." và KHÔNG được bịa link.
+6. Tuyệt đối không được tạo domain ngoài danh sách UIT.
 
-- Trước khi trả lời, **tự suy nghĩ từng bước** theo quy trình
-  phân loại → xác định thông tin → đọc context → ghép câu trả lời →
-  kiểm tra.
-- **Chỉ sử dụng** thông tin có trong dữ liệu tham chiếu và lịch sử
-  hội thoại.
-- Nếu **dữ liệu không đủ** để trả lời chính xác:
-  - Nói rõ đang thiếu thông tin gì;
-  - Gợi ý người dùng hỏi cụ thể hơn (vd: tên ngành, khóa, bậc học,…).
+### Cách trả lời
+- Trả lời ngắn gọn, chính xác.
+- Trích dẫn dữ liệu (không phải đường dẫn giả).
+- Nếu có URL hợp lệ → đưa cuối câu trả lời theo dạng:
+  (Nguồn: <URL>)
 
-### Cách trình bày câu trả lời
-
-- Trả lời **ngắn gọn**, đúng trọng tâm.
-- Sử dụng **gạch đầu dòng** khi liệt kê.
-- Với câu trả lời dài, chia nhỏ bằng tiêu đề `###` để rõ ràng.
-- **Không mô tả** quá trình suy luận nội bộ.
+### Bắt đầu trả lời bên dưới:
 """
+
 
 #“Các prompt dưới đây mục 3,4,5,6 chưa dùng trong LLMService hiện tại, chỉ thêm trước để sau này phục vụ Search Agent, để dưới đây cũng không bị ảnh hưởng”.
 # ------------------------------------------------------------
@@ -312,6 +312,12 @@ Gán nhãn này nếu câu hỏi KHÔNG yêu cầu dữ liệu nội bộ của 
 - Nếu câu hỏi là **HỖN HỢP** (vừa chào hỏi vừa hỏi thông tin), PHẢI chọn **need_info**.
 
 ### Các ví dụ mẫu (Few-shot Examples):
+
+User Input: "Hi"
+Output: small_talk
+
+User Input: "Hello"
+Output: small_talk
 
 User Input: "Xin chào, bạn khỏe không?"
 Output: small_talk
