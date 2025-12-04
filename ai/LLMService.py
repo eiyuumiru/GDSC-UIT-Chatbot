@@ -191,3 +191,7 @@ class LLMService():
                 f.write(graph_image)
         except Exception as e:
             raise RuntimeError(f"Không thể generate graph: {e}")
+
+    def reset_memory(self, thread_id: str = "default_session") -> None:
+        """Xoá memory cho một thread cụ thể"""
+        self.memory.delete_thread(thread_id)
