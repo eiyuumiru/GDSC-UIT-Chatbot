@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 from langgraph.constants import END, START
 from langgraph.graph import MessagesState, StateGraph
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import MemorySaver
 from .Agent.SearchAgent.TavilyService import TavilyService, make_tavily_tool
@@ -16,7 +16,10 @@ from litellm.utils import trim_messages
 from .Prompt.Prompts import PLANNER_ROUTER_PROMPT
 from .Prompt import ANSWER_PROMPT, SMALL_TALK_ANSWER_PROMPT, GURADRAIL_ANSWER_PROMPT
 
-def _collect_tool_chunks_from_state(state: MessagesState) -> List[Dict[str, Any]]:
+class AppState(MessagesState):
+    route: Optional[str]
+
+def _collect_tool_chunks_from_state(state: AppState) -> List[Dict[str, Any]]:
     chunks: List[Dict[str, Any]] = []
     for msg in reversed(state["messages"]):
         if getattr(msg, "type", None) != "tool":
@@ -29,14 +32,14 @@ def _collect_tool_chunks_from_state(state: MessagesState) -> List[Dict[str, Any]
                     chunks.append(c)
     return chunks[::-1]
 
-def _get_last_user_question(state: MessagesState) -> str:
+def _get_last_user_question(state: AppState) -> str:
     for m in reversed(state["messages"]):
         if m.type == "human":
             return str(m.content or "")
     return ""
 
 def _format_recent_history(
-    state: MessagesState, max_chars: int = 2000, max_turns: int = 6
+    state: AppState, max_chars: int = 2000, max_turns: int = 6
 ) -> str:
     buf = []
     for m in state["messages"]:
@@ -88,23 +91,19 @@ class LLMService():
     def __init_Memory(self):
         return MemorySaver()
 
-    def __guardrail(self, state: MessagesState):
+    def __guardrail(self, state: AppState):
         question = _get_last_user_question(state)
         messages = GURADRAIL_ANSWER_PROMPT.format_messages(
             question=question,
             user_query=question,
         )
         response = self.llm.invoke(messages)
-        cls = str(response.content or "").strip().lower().replace(" ", "_")
-        if "small_talk" in cls:
-            route = "small_talk"
-        elif "need_info" in cls:
-            route = "need_info"
-        else:
-            route = "small_talk"  # default to small_talk when unclear
-        return {"messages": [], "route": route}
+        classification = str(response.content or "").strip().upper()
+        if "NEED_INFO" in classification:
+            return {"route": "needs_info"}
+        else: return {"route": "small_talk"}
     
-    def __planner(self, state: MessagesState):
+    def __planner(self, state: AppState):
         """Planner (LLM Agent): Quyết định tools nào cần dùng (parallel calling)"""
         planner_system = SystemMessage(
             content=(PLANNER_ROUTER_PROMPT)
@@ -116,7 +115,7 @@ class LLMService():
         response = llm_with_tools.invoke([planner_system] + state["messages"])
         return {"messages": [response]}
     
-    def __generator(self, state: MessagesState):
+    def __generator(self, state: AppState):
         """Generator: Gen câu trả lời cuối cùng từ LLM (có/không context)"""
         question = _get_last_user_question(state)
         route = state.get("route")
@@ -145,7 +144,7 @@ class LLMService():
 
         return {"messages": [out]}
 
-    def __route_after_guardrail(self, state: MessagesState) -> str:
+    def __route_after_guardrail(self, state: AppState) -> str:
         """Routing function: quyết định flow sau Guardrail"""
         route = state.get("route", "need_info")
         return "generator" if route == "small_talk" else "planner" 
@@ -153,7 +152,7 @@ class LLMService():
     def __init_Graph(self):
         tools = ToolNode([self._retrieve_tool, self._tavily_tool])
         
-        graph_builder = StateGraph(MessagesState)
+        graph_builder = StateGraph(AppState)
         graph_builder.add_node("guardrail", self.__guardrail)
         graph_builder.add_node("planner", self.__planner)
         graph_builder.add_node("tools", tools)

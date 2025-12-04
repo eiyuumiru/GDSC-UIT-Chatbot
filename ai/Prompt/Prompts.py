@@ -1,14 +1,3 @@
-# ---------------------------
-# 1. SYSTEM PROMPT (Markdown)
-# ---------------------------
-
-# The system prompt establishes the role of the assistant and the
-# high‑level guidelines it must follow throughout the conversation. It
-# explicitly instructs the model about its scope, information sources,
-# forbidden behaviours and the internal reasoning process. The format
-# leverages headings and lists to make each rule salient to the model’s
-# attention mechanism.
-
 SYSTEM_INSTRUCTIONS_MD: str = """
 ## Vai trò của bạn
 
@@ -76,18 +65,6 @@ trình và các quy định liên quan đến UIT.
 > được cung cấp**.
 """
 
-
-# ------------------------------------------------------------
-# 2. HUMAN PROMPT: Answer Generation (Markdown + slots)
-# ------------------------------------------------------------
-
-# This template drives the core question‑answering behaviour. It
-# receives the conversation history, the retrieved contexts, and the
-# current question. It reminds the model to think internally following
-# the chain‑of‑thought procedure defined in the system prompt, but to
-# conceal that reasoning in the final answer. It also reiterates the
-# constraints on source usage and answer formatting.
-
 ANSWER_HUMAN_TEMPLATE_MD: str = """
 ### Ngữ cảnh hội thoại gần đây
 {history}
@@ -130,133 +107,6 @@ Bạn BẮT BUỘC phải tuân thủ:
 ### Bắt đầu trả lời bên dưới:
 """
 
-
-#“Các prompt dưới đây mục 3,4,5,6 chưa dùng trong LLMService hiện tại, chỉ thêm trước để sau này phục vụ Search Agent, để dưới đây cũng không bị ảnh hưởng”.
-# ------------------------------------------------------------
-# 3. CLASSIFICATION PROMPT (Markdown)
-# ------------------------------------------------------------
-
-# The classification prompt determines the type of user question before
-# further processing. It should output a concise label describing the
-# intent category. This helps downstream components choose the right
-# processing pipeline (e.g. answer directly, perform a search, etc.).
-
-CLASSIFICATION_PROMPT_MD: str = """
-### Nhiệm vụ
-
-Bạn nhận được câu hỏi của người dùng về UIT và cần **phân loại loại
-câu hỏi** để quyết định bước xử lý tiếp theo. Các loại câu hỏi có thể là:
-
-1. `GIỚI_THIỆU_UIT`: Câu hỏi về tổng quan trường, cơ sở vật chất,
-   ngành đào tạo nói chung.
-2. `CHƯƠNG_TRÌNH`: Câu hỏi về ngành hoặc chương trình đào tạo cụ thể
-   (mã ngành, bậc học, chuẩn đầu ra…).
-3. `MÔN_HỌC`: Câu hỏi về môn học/học phần cụ thể (số tín chỉ, học kỳ
-   mở, điều kiện tiên quyết…).
-4. `QUY_CHẾ`: Câu hỏi về quy định/quy chế (khóa luận, học phí, xét
-   tốt nghiệp, v.v.).
-5. `KHÁC`: Câu hỏi không thuộc các loại trên hoặc nằm ngoài phạm vi
-   UIT.
-
-### Câu hỏi
-
-{question}
-
-### Yêu cầu
-
-- Chỉ trả về **một** trong các nhãn ở trên (GIỚI_THIỆU_UIT, CHƯƠNG_TRÌNH,
-  MÔN_HỌC, QUY_CHẾ, KHÁC).
-- Không giải thích thêm.
-"""
-
-
-# ------------------------------------------------------------
-# 4. SEARCH-PLANNER PROMPT (Markdown + slots)
-# ------------------------------------------------------------
-
-# When a question cannot be answered directly from the available context
-# and requires web search, this prompt guides a search agent to plan
-# appropriate queries. It restricts searches to approved UIT domains and
-# requests a concise list of keyword queries without extra prose.
-
-SEARCH_PLANNER_PROMPT_MD: str = """
-### Mô tả nhiệm vụ
-
-Bạn là một tác nhân tìm kiếm tự động, được sử dụng khi thiếu dữ liệu
-tham chiếu. Dựa trên câu hỏi sau, hãy tạo danh sách tối đa **5 truy
-vấn** để thu thập thông tin từ các nguồn chính thức của UIT.
-
-### Câu hỏi cần tìm
-
-{question}
-
-### Yêu cầu
-
-- Chỉ tạo truy vấn liên quan đến câu hỏi và ưu tiên tiếng Việt.
-- Mỗi truy vấn nên bao gồm từ khóa chính và trang đích rõ ràng, ví dụ
-  `"OEP UIT học phí ngành khoa học máy tính"`.
-- **Giới hạn** tìm kiếm trong các tên miền: `oep.uit.edu.vn`,
-  `daa.uit.edu.vn`, `khoa.uit.edu.vn`.
-- Đưa ra kết quả dạng danh sách gạch đầu dòng, mỗi dòng là một truy
-  vấn.
-"""
-
-
-# ------------------------------------------------------------
-# 5. SUMMARY PROMPT (Markdown + slots)
-# ------------------------------------------------------------
-
-# After retrieving documents, the agent may need to summarise a large
-# passage before synthesising an answer. This prompt instructs the model
-# to summarise provided content accurately and concisely, preserving
-# important details such as numbers, conditions and source attribution.
-
-SUMMARY_PROMPT_MD: str = """
-### Nhiệm vụ
-
-Bạn được cung cấp một đoạn tài liệu trích từ nguồn chính thức của UIT.
-Hãy tóm tắt đoạn này bằng tiếng Việt rõ ràng, ngắn gọn, giữ nguyên các
-thông tin quan trọng (như số tín chỉ, điều kiện tiên quyết, năm áp dụng,…).
-
-### Nội dung cần tóm tắt
-
-```markdown
-{content}
-```
-
-### Yêu cầu
-
-- Độ dài tóm tắt nên ngắn hơn 1/3 so với nội dung gốc.
-- Không bỏ sót thông tin quan trọng, nhưng tránh lặp lại câu chữ.
-- Không thêm thông tin mới.
-"""
-
-
-REWRITE_PROMPT_MD: str = """
-### Nhiệm vụ
-
-Bạn nhận được một câu trả lời nháp đã được sinh ra dựa trên dữ liệu
-tham chiếu. Hãy chỉnh sửa lại câu trả lời này để:
-
-- Đảm bảo đúng ngữ pháp tiếng Việt, rõ ràng và mạch lạc.
-- Tuân thủ định dạng: sử dụng tiêu đề (`###`) khi cần, gạch đầu
-  dòng `-` khi liệt kê, và đánh số thứ tự khi mô tả các bước.
-- Đảm bảo nội dung dựa trên dữ liệu tham chiếu, **không thêm hoặc
-  bịa đặt**.
-- Có thể thêm một câu kết thúc lịch sự, hướng dẫn người dùng bước
-  tiếp theo hoặc nơi tham khảo thêm.
-
-### Câu trả lời nháp
-
-```markdown
-{draft_answer}
-```
-
-### Yêu cầu
-
-- Chỉ trả về câu trả lời đã được chỉnh sửa, không giải thích thêm.
-"""
-
 PLANNER_ROUTER_PROMPT: str = """
 Bạn là AI planner chuyên phân tích câu hỏi về UIT và quyết định công cụ nào cần dùng.
 
@@ -280,9 +130,7 @@ Bạn là AI planner chuyên phân tích câu hỏi về UIT và quyết định
 - Nếu cần thông tin **mới/lịch/thông báo/quy chế** → gọi `tavily_search`
 - Có thể gọi **CẢ HAI** công cụ song song nếu câu hỏi phức tạp
 - Nếu có thể trả lời từ **kiến thức chung** → KHÔNG gọi công cụ
-
 ---
-
 Phân tích và quyết định, không giải thích.
 """
 
@@ -347,8 +195,6 @@ Output: small_talk
 User Input: "Thư viện trường mở cửa đến mấy giờ?"
 Output: need_info
 """
-
-
 
 SMALL_TALK_INSTRUCTION_MD: str = """
 ## Vai trò của bạn
