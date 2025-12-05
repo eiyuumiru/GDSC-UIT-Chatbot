@@ -36,7 +36,7 @@ if __name__ == "__main__":
         raise ValueError("QDRANT_API_KEY and QDRANT_URL must be set in environment variables.")
     
     try:
-        get_bucket("c311")
+        get_bucket("cs311_uswest")
     except Exception as e:
         raise RuntimeError(f"Failed to get GCS bucket: {e}")
     clean_json_folder("ai/dataset/CS311", max_workers=4)
