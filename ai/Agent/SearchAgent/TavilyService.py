@@ -12,7 +12,7 @@ class TavilyService:
         "tuyensinh.uit.edu.vn",
         "khtc.uit.edu.vn",
         "ctsv.uit.edu.vn",
-        "www.uit.edu.vn",
+        "uit.edu.vn",
         "sdh.uit.edu.vn",
         "thuvien.uit.edu.vn",
         "lib.uit.edu.vn",

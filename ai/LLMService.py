@@ -12,7 +12,7 @@ from .RetrieverService.RetrieverService import (
 )
 from .GroqService.GroqBase import GroqBase
 from .config.Groq import GroqLLMConfig as cfg
-from litellm.utils import trim_messages
+from litellm.utils import trim_messages, token_counter
 from .Prompt.Prompts import PLANNER_ROUTER_PROMPT
 from .Prompt import ANSWER_PROMPT, SMALL_TALK_ANSWER_PROMPT, GURADRAIL_ANSWER_PROMPT
 
@@ -37,6 +37,21 @@ def _get_last_user_question(state: AppState) -> str:
         if m.type == "human":
             return str(m.content or "")
     return ""
+
+def _get_recent_conversation(state: AppState, max_pairs: int = 2) -> List[Any]:
+    """Lấy N cặp hội thoại gần nhất (human + ai), bỏ qua ToolMessage"""
+    recent_messages = []
+    human_count = 0
+    
+    for msg in reversed(state["messages"]):
+        if msg.type in ("human", "ai"):
+            recent_messages.insert(0, msg)
+            if msg.type == "human":
+                human_count += 1
+                if human_count >= max_pairs:
+                    break
+    
+    return recent_messages
 
 def _format_recent_history(
     state: AppState, max_chars: int = 2000, max_turns: int = 6
@@ -105,14 +120,14 @@ class LLMService():
     
     def __planner(self, state: AppState):
         """Planner (LLM Agent): Quyết định tools nào cần dùng (parallel calling)"""
-        planner_system = SystemMessage(
-            content=(PLANNER_ROUTER_PROMPT)
-        )
+        planner_system = SystemMessage(content=PLANNER_ROUTER_PROMPT)
+        recent_messages = _get_recent_conversation(state, max_pairs=2)
+        
         llm_with_tools = self.llm.bind_tools(
             [self._retrieve_tool, self._tavily_tool],
             parallel_tool_calls=True 
         )
-        response = llm_with_tools.invoke([planner_system] + state["messages"])
+        response = llm_with_tools.invoke([planner_system] + recent_messages)
         return {"messages": [response]}
     
     def __generator(self, state: AppState):
@@ -121,26 +136,44 @@ class LLMService():
         route = state.get("route")
                 
         if route == "small_talk":
-            messages = SMALL_TALK_ANSWER_PROMPT.format_messages(
-                question=question,
-            )
+            messages = SMALL_TALK_ANSWER_PROMPT.format_messages(question=question)
             trimmed = trim_messages(messages=messages, model=self.model)
             messages = trimmed[0] if isinstance(trimmed, tuple) else trimmed
             out = self.llm.invoke(messages)
             return {"messages": [out]}
         
+        # RAG flow: Sử dụng context từ tools và 2 cặp hội thoại gần nhất
         contexts = _collect_tool_chunks_from_state(state)
+        recent_messages = _get_recent_conversation(state, max_pairs=2)
         
-        history = _format_recent_history(state)
+        # Format history từ recent messages
+        history_parts = []
+        for msg in recent_messages:
+            if msg.type == "human":
+                history_parts.append(f"Người dùng: {msg.content}")
+            elif msg.type == "ai" and msg.content:
+                history_parts.append(f"Trợ lý: {msg.content}")
+        history = "\n".join(history_parts)
+                
         messages = ANSWER_PROMPT.format_messages(
             question=question,
             contexts=contexts,
             history=history,
         )
 
-        trimmed_result = trim_messages(messages=messages, model=self.model)
-        messages = trimmed_result[0] if isinstance(trimmed_result, tuple) else trimmed_result
+        # Count tokens in contexts
+        # contexts_text = "\n".join([chunk.get("content", "") for chunk in contexts])
+        # contexts_tokens = token_counter(model=self.model, text=contexts_text)
+        # print(f"📦 Contexts: {len(contexts)} chunks, {contexts_tokens:,} tokens")
+        # print(f"📜 History: {len(history)} characters")
+        # print(f"History: {history}")
+        trimmed = trim_messages(messages=messages, model=self.model)
+        messages = trimmed[0] if isinstance(trimmed, tuple) else trimmed
         out = self.llm.invoke(messages)
+
+        # input_tokens = token_counter(model=self.model, messages=messages)
+        # output_tokens = token_counter(model=self.model, text=str(out.content or ""))
+        # print(f"🤖 Final Response: {input_tokens:,} input + {output_tokens:,} output = {input_tokens + output_tokens:,} tokens")
 
         return {"messages": [out]}
 
@@ -177,20 +210,10 @@ class LLMService():
 
     def __call__(self, question: str, thread_id: str = "default_session") -> Any:
         config = {"configurable": {"thread_id": thread_id}}
-        return self.graph.invoke(
+        result = self.graph.invoke(
             {"messages": [HumanMessage(content=question)]}, config=config # type: ignore
         )
-    
-    def visualize_graph(self, output_path: str = "graph_diagram.png") -> None:
-        try:            
-            # Generate graph visualization
-            graph_image = self.graph.get_graph().draw_mermaid_png()
-            
-            # Save to file
-            with open(output_path, "wb") as f:
-                f.write(graph_image)
-        except Exception as e:
-            raise RuntimeError(f"Không thể generate graph: {e}")
+        return result
 
     def reset_memory(self, thread_id: str = "default_session") -> None:
         """Xoá memory cho một thread cụ thể"""
