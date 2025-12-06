@@ -1,5 +1,17 @@
 from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
-from .Prompts import SYSTEM_INSTRUCTIONS_MD, ANSWER_HUMAN_TEMPLATE_MD, PLANNER_ROUTER_PROMPT, GURADRAIL_PROMPT, SMALL_TALK_INSTRUCTION_MD
+from .Prompts import (
+    SYSTEM_INSTRUCTIONS_MD,
+    ANSWER_HUMAN_TEMPLATE_MD,
+    PLANNER_ROUTER_PROMPT,
+    GURADRAIL_PROMPT,
+    SMALL_TALK_INSTRUCTION_MD,
+    ADVISOR_INSTRUCTION_MD,
+    ADVISOR_HUMAN_TEMPLATE_MD,
+    ADVISOR_CLASSIFIER_SYSTEM_PROMPT,
+    ADVISOR_RENDER_SYSTEM_MD,
+    ADVISOR_RENDER_HUMAN_MD,
+    ADVISOR_CLASSIFIER_HUMAN_MD,
+)
 
 #Chưa fix
 ANSWER_PROMPT = ChatPromptTemplate.from_messages(
@@ -20,5 +32,26 @@ GURADRAIL_ANSWER_PROMPT = ChatPromptTemplate.from_messages(
     [
         SystemMessagePromptTemplate.from_template(GURADRAIL_PROMPT),
         HumanMessagePromptTemplate.from_template('User Input: "{user_query}"\nOutput:')
+    ]
+)
+
+ADVISOR_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        SystemMessagePromptTemplate.from_template(ADVISOR_INSTRUCTION_MD),
+        HumanMessagePromptTemplate.from_template(ADVISOR_HUMAN_TEMPLATE_MD),
+    ]
+)
+
+ADVISOR_RENDER_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        SystemMessagePromptTemplate.from_template(ADVISOR_RENDER_SYSTEM_MD),
+        HumanMessagePromptTemplate.from_template(ADVISOR_RENDER_HUMAN_MD),
+    ]
+)
+
+ADVISOR_CLASSIFIER_MSG_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        SystemMessagePromptTemplate.from_template(ADVISOR_CLASSIFIER_SYSTEM_PROMPT),
+        HumanMessagePromptTemplate.from_template(ADVISOR_CLASSIFIER_HUMAN_MD),
     ]
 )
