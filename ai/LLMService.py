@@ -14,12 +14,12 @@ from .RetrieverService.RetrieverService import (
 from .GroqService.GroqBase import GroqBase
 from .config.Groq import GroqLLMConfig as cfg
 from litellm.utils import trim_messages
-from .Prompt.Prompts import PLANNER_ROUTER_PROMPT
 from .Prompt import (
     ANSWER_PROMPT,
     SMALL_TALK_ANSWER_PROMPT,
     GUARDRAIL_ANSWER_PROMPT,
     ADVISOR_PROMPT,
+    PLANNER_PROMPT,
     ADVISOR_RENDER_PROMPT,
 )
 
@@ -45,37 +45,29 @@ def _get_last_user_question(state: AppState) -> str:
             return str(m.content or "")
     return ""
 
-def _get_recent_conversation(state: AppState, max_pairs: int = 2) -> List[Any]:
-    """Lấy N cặp hội thoại gần nhất (human + ai), bỏ qua ToolMessage"""
+def _get_recent_conversation(state: AppState, max_pairs: int = 2) -> str:
+    """Lấy N cặp hội thoại gần nhất (human + ai), bỏ qua ToolMessage và format thành string."""
     recent_messages = []
     human_count = 0
     
     for msg in reversed(state["messages"]):
-        if msg.type in ("human", "ai"):
-            recent_messages.insert(0, msg)
-            if msg.type == "human":
-                human_count += 1
-                if human_count >= max_pairs:
-                    break
+        if msg.type not in ("human", "ai"):
+            continue
+            
+        recent_messages.insert(0, msg)
+        if msg.type == "human":
+            human_count += 1
+            if human_count >= max_pairs:
+                break
     
-    return recent_messages
-
-def _format_recent_history(state: AppState, max_pairs: int = 3, max_chars: int = 1200) -> str:
-    """Ghép lịch sử ngắn (human/ai) để giúp phân loại ngữ cảnh."""
-    buf: List[str] = []
-    human_seen = 0
-    for msg in reversed(state["messages"]):
-        if msg.type in ("human", "ai"):
-            role = "Người dùng" if msg.type == "human" else "Trợ lý"
-            text = str(msg.content or "").strip()
-            if text:
-                buf.insert(0, f"{role}: {text}")
-            if msg.type == "human":
-                human_seen += 1
-                if human_seen >= max_pairs:
-                    break
-    joined = "\n".join(buf)
-    return joined[:max_chars]
+    history_parts = []
+    for msg in recent_messages:
+        if msg.type == "human":
+            history_parts.append(f"Người dùng: {msg.content}")
+        elif msg.type == "ai" and msg.content:
+            history_parts.append(f"Trợ lý: {msg.content}")
+    
+    return "\n".join(history_parts)
 
 def _safe_text(val: Any) -> str:
     """Escape braces to avoid .format issues and ensure string type."""
@@ -119,17 +111,12 @@ class LLMService():
         self._retrieve_tool = make_retrieve_tool(self._retriever_service)
         self.graph = self.__init_Graph()
 
-    def __invoke_text_only(self, messages):
-        """Invoke LLM with tool_choice disabled to avoid accidental tool calls."""
-        llm_no_tools = self.llm.with_config({"extra_body": {"tool_choice": "none"}})
-        return llm_no_tools.invoke(messages)
-
     def __init_Memory(self):
         return MemorySaver()
 
     def __guardrail(self, state: AppState):
         question = _get_last_user_question(state)
-        history = _format_recent_history(state, max_pairs=3, max_chars=1200)
+        history = _get_recent_conversation(state, max_pairs=2)
         messages = GUARDRAIL_ANSWER_PROMPT.format_messages(
             question=question,
             user_query=question,
@@ -148,14 +135,18 @@ class LLMService():
 
     def __planner(self, state: AppState):
         """Planner (LLM Agent): Quyết định tools nào cần dùng (parallel calling)"""
-        planner_system = SystemMessage(content=PLANNER_ROUTER_PROMPT)
         recent_messages = _get_recent_conversation(state, max_pairs=2)
+
+        message = PLANNER_PROMPT.format_messages(
+            user_query=_get_last_user_question(state),
+            history=recent_messages,
+        )
 
         llm_with_tools = self.llm.bind_tools(
             [self._retrieve_tool, self._tavily_tool],
             parallel_tool_calls=True 
         )
-        response = llm_with_tools.invoke([planner_system] + recent_messages)
+        response = llm_with_tools.invoke(message)
         has_tools = bool(getattr(response, "tool_calls", None))
         print(f"[planner] route={state.get('route')} tool_calls={has_tools}")
         return {"messages": [response]}
@@ -175,20 +166,11 @@ class LLMService():
         # RAG flow: Sử dụng context từ tools và 2 cặp hội thoại gần nhất
         contexts = _collect_tool_chunks_from_state(state)
         recent_messages = _get_recent_conversation(state, max_pairs=2)
-        
-        # Format history từ recent messages
-        history_parts = []
-        for msg in recent_messages:
-            if msg.type == "human":
-                history_parts.append(f"Người dùng: {msg.content}")
-            elif msg.type == "ai" and msg.content:
-                history_parts.append(f"Trợ lý: {msg.content}")
-        history = "\n".join(history_parts)
                 
         messages = ANSWER_PROMPT.format_messages(
             question=question,
             contexts=contexts,
-            history=history,
+            history=recent_messages,
         )
 
         # Count tokens in contexts
@@ -221,7 +203,7 @@ class LLMService():
             question=question,
             contexts=context_text_safe or "Không có dữ liệu context.",
         )
-        advisor_raw = self.__invoke_text_only(advisor_messages)
+        advisor_raw = self.llm.invoke(advisor_messages)
 
         def _as_list(value: Any) -> List[str]:
             if isinstance(value, list):
@@ -257,11 +239,9 @@ class LLMService():
             next_steps=_safe_text("\n".join(next_steps) if next_steps else ""),
             major_unavailable=str(major_unavailable),
         )
-        final_out = self.__invoke_text_only(render_messages)
+        final_out = self.llm.invoke(render_messages)
 
-        return {
-            "messages": [final_out],
-        }
+        return {"messages": [final_out]}
 
     def __route_after_guardrail(self, state: AppState) -> str:
         """Routing function: quyết định flow sau Guardrail"""

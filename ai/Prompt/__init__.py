@@ -26,6 +26,13 @@ SMALL_TALK_ANSWER_PROMPT = ChatPromptTemplate.from_messages(
     ]    
 )
 
+PLANNER_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        SystemMessagePromptTemplate.from_template(PLANNER_ROUTER_PROMPT),
+        HumanMessagePromptTemplate.from_template("Lịch sử gần đây:\n{history}\nUser Input: \"{user_query}\"\nOutput:"),
+    ]
+)
+
 GUARDRAIL_ANSWER_PROMPT = ChatPromptTemplate.from_messages(
     [
         SystemMessagePromptTemplate.from_template(GUARDRAIL_PROMPT),
