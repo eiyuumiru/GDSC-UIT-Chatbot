@@ -101,7 +101,6 @@ class LLMService():
             temperature=temperature,
             max_tokens=max_tokens,
             timeout=timeout,
-            max_retries=cfg.DEFAULT_MAX_RETRIES,
         )
         self.memory = self.__init_Memory()
         self._retriever_service = RetrieverService(**(retriever_config or {}))
