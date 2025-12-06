@@ -10,6 +10,10 @@ export type ChatResponse = {
   content: string;
 };
 
+export type ResetResponse = {
+  session_id: string;
+};
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ||
   "http://localhost:8000";
@@ -35,6 +39,27 @@ export async function sendPrompt(
   if (!response.ok) {
     const detail = await response.text();
     throw new Error(detail || "Failed to send prompt");
+  }
+
+  return response.json();
+}
+
+export async function resetSession(
+  sessionId: string,
+  signal?: AbortSignal
+): Promise<ResetResponse> {
+  const response = await fetch(`${API_BASE_URL}/chat/reset`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ session_id: sessionId }),
+    signal,
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || "Failed to reset session");
   }
 
   return response.json();
