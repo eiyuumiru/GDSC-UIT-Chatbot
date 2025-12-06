@@ -3,7 +3,7 @@ import json
 from typing import Any, Dict, List, Optional
 from langgraph.constants import END, START
 from langgraph.graph import MessagesState, StateGraph
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage
 from langgraph.prebuilt import ToolNode
 from langgraph.checkpoint.memory import MemorySaver
 from .Agent.SearchAgent.TavilyService import TavilyService, make_tavily_tool
@@ -18,17 +18,13 @@ from .Prompt.Prompts import PLANNER_ROUTER_PROMPT
 from .Prompt import (
     ANSWER_PROMPT,
     SMALL_TALK_ANSWER_PROMPT,
-    GURADRAIL_ANSWER_PROMPT,
+    GUARDRAIL_ANSWER_PROMPT,
     ADVISOR_PROMPT,
     ADVISOR_RENDER_PROMPT,
-    ADVISOR_CLASSIFIER_MSG_PROMPT,
 )
 
 class AppState(MessagesState):
     route: Optional[str]
-    advisor_mode: Optional[bool]
-    advisor_result: Optional[Dict[str, Any]]
-    advisor_clarify_pending: Optional[bool]
 
 def _collect_tool_chunks_from_state(state: AppState) -> List[Dict[str, Any]]:
     chunks: List[Dict[str, Any]] = []
@@ -64,28 +60,22 @@ def _get_recent_conversation(state: AppState, max_pairs: int = 2) -> List[Any]:
     
     return recent_messages
 
-def _format_recent_history(
-    state: AppState, max_chars: int = 2000, max_turns: int = 6
-) -> str:
-    buf = []
-    for m in state["messages"]:
-        if m.type in ("human", "ai"):
-            role = "Người dùng" if m.type == "human" else "Trợ lý"
-            text = str(m.content or "").strip()
+def _format_recent_history(state: AppState, max_pairs: int = 3, max_chars: int = 1200) -> str:
+    """Ghép lịch sử ngắn (human/ai) để giúp phân loại ngữ cảnh."""
+    buf: List[str] = []
+    human_seen = 0
+    for msg in reversed(state["messages"]):
+        if msg.type in ("human", "ai"):
+            role = "Người dùng" if msg.type == "human" else "Trợ lý"
+            text = str(msg.content or "").strip()
             if text:
-                buf.append(f"{role}: {text}")
-    if not buf:
-        return ""
-    tail = buf[-(max_turns * 2) :]
-    joined: List[str] = []
-    total = 0
-    for t in tail:
-        if total + len(t) > max_chars:
-            break
-        joined.append(t)
-        total += len(t)
-    return "\n".join(joined)
-
+                buf.insert(0, f"{role}: {text}")
+            if msg.type == "human":
+                human_seen += 1
+                if human_seen >= max_pairs:
+                    break
+    joined = "\n".join(buf)
+    return joined[:max_chars]
 
 def _safe_text(val: Any) -> str:
     """Escape braces to avoid .format issues and ensure string type."""
@@ -139,38 +129,22 @@ class LLMService():
 
     def __guardrail(self, state: AppState):
         question = _get_last_user_question(state)
-        messages = GURADRAIL_ANSWER_PROMPT.format_messages(
+        history = _format_recent_history(state, max_pairs=3, max_chars=1200)
+        messages = GUARDRAIL_ANSWER_PROMPT.format_messages(
             question=question,
             user_query=question,
+            history=history or "(trống)",
         )
         response = self.llm.invoke(messages)
         classification = str(response.content or "").strip().upper()
         if "NEED_ADVISOR_INFO" in classification:
+            print("[guardrail] route=advisor")
             return {"route": "advisor"}
         if "NEED_GENERAL_INFO" in classification:
+            print("[guardrail] route=general")
             return {"route": "general"}
+        print("[guardrail] route=small_talk")
         return {"route": "small_talk"}
-    
-    def __should_use_advisor(self, state: AppState) -> bool:
-        """Dùng LLM phân loại intent tư vấn ngành dựa trên lượt hiện tại + lịch sử ngắn."""
-        question = _get_last_user_question(state)
-        if not question or not str(question).strip():
-            return False
-        history = _format_recent_history(state, max_chars=1200, max_turns=2)
-        messages = ADVISOR_CLASSIFIER_MSG_PROMPT.format_messages(
-            history=history or "(trống)",
-            question=question,
-        )
-        try:
-            res = self.__invoke_text_only(messages)
-            label = str(res.content or "").strip().upper()
-            if "ADVISOR" in label:
-                return True
-            if "GENERAL" in label or "NO" in label:
-                return False
-        except Exception:
-            return False
-        return False
 
     def __planner(self, state: AppState):
         """Planner (LLM Agent): Quyết định tools nào cần dùng (parallel calling)"""
@@ -182,6 +156,8 @@ class LLMService():
             parallel_tool_calls=True 
         )
         response = llm_with_tools.invoke([planner_system] + recent_messages)
+        has_tools = bool(getattr(response, "tool_calls", None))
+        print(f"[planner] route={state.get('route')} tool_calls={has_tools}")
         return {"messages": [response]}
     
     def __generator(self, state: AppState):
@@ -232,7 +208,7 @@ class LLMService():
         return {"messages": [out]}
 
     def __advisor(self, state: AppState):
-        """Advisor node: sinh khuyến nghị ngành dựa trên question + context từ tools."""
+        """Advisor node: sinh khuyến nghị và render cuối cùng."""
         question = _get_last_user_question(state)
         contexts = _collect_tool_chunks_from_state(state)
         context_text = "\n\n".join(
@@ -241,30 +217,11 @@ class LLMService():
         # Escape braces để tránh lỗi format khi context chứa JSON
         context_text_safe = context_text.replace("{", "{{").replace("}", "}}")
 
-        messages = ADVISOR_PROMPT.format_messages(
+        advisor_messages = ADVISOR_PROMPT.format_messages(
             question=question,
             contexts=context_text_safe or "Không có dữ liệu context.",
         )
-        out = self.__invoke_text_only(messages)
-
-        advisor_result: Optional[Dict[str, Any]] = None
-        clarify_pending = False
-        try:
-            parsed = json.loads(str(out.content))
-            if isinstance(parsed, dict):
-                advisor_result = parsed
-                major = str(parsed.get("major", "") or "").strip()
-                if not major:
-                    clarify_pending = True
-        except Exception:
-            advisor_result = None
-
-        return {"messages": [out], "advisor_result": advisor_result, "advisor_clarify_pending": clarify_pending}
-
-    def __generator_advisor(self, state: AppState):
-        """Trình bày kết quả tư vấn ngành."""
-        advisor = state.get("advisor_result") or {}
-        question = _get_last_user_question(state)
+        advisor_raw = self.__invoke_text_only(advisor_messages)
 
         def _as_list(value: Any) -> List[str]:
             if isinstance(value, list):
@@ -274,24 +231,25 @@ class LLMService():
             return []
 
         major = ""
-        reasons = []
-        cautions = []
-        next_steps = []
-        if isinstance(advisor, dict):
-            major = str(advisor.get("major", "") or "").strip()
-            reasons = _as_list(advisor.get("reasons"))
-            cautions = _as_list(advisor.get("cautions"))
-            next_steps = _as_list(advisor.get("next_steps"))
+        reasons: List[str] = []
+        cautions: List[str] = []
+        next_steps: List[str] = []
 
-        major_lower = major.lower()
-        major_unavailable = any(
-            phrase in major_lower
-            for phrase in ["không phù hợp", "khong phu hop", "không đào tạo", "khong dao tao", "không có ngành", "khong co nganh"]
-        )
+        try:
+            parsed = json.loads(str(advisor_raw.content))
+            if isinstance(parsed, dict):
+                major = str(parsed.get("major", "") or "").strip()
+                reasons = _as_list(parsed.get("reasons"))
+                cautions = _as_list(parsed.get("cautions"))
+                next_steps = _as_list(parsed.get("next_steps"))
+        except Exception:
+            pass
 
-        has_major = bool(major) and not major_unavailable
+        if not major:
+            major = "None"
+        major_unavailable = major.strip().lower() == "none"
 
-        messages = ADVISOR_RENDER_PROMPT.format_messages(
+        render_messages = ADVISOR_RENDER_PROMPT.format_messages(
             question=_safe_text(question),
             major=_safe_text(major),
             reasons=_safe_text("\n".join(reasons) if reasons else ""),
@@ -299,27 +257,42 @@ class LLMService():
             next_steps=_safe_text("\n".join(next_steps) if next_steps else ""),
             major_unavailable=str(major_unavailable),
         )
+        final_out = self.__invoke_text_only(render_messages)
 
-        out = self.__invoke_text_only(messages)
-        return {"messages": [out]}
+        return {
+            "messages": [final_out],
+        }
 
     def __route_after_guardrail(self, state: AppState) -> str:
         """Routing function: quyết định flow sau Guardrail"""
         route = state.get("route", "general")
         if route == "small_talk":
+            print("[route_after_guardrail] small_talk -> generator")
             return "generator"
-        if route == "advisor":
-            return "advisor"
-        return "planner" 
+        print("[route_after_guardrail] -> planner")
+        return "planner"
 
     def __route_after_planner(self, state: AppState) -> str:
         """Routing sau planner: ưu tiên tools nếu có tool_calls, nếu không có thì generator."""
+        route = state.get("route", "general")
+        if route == "advisor":
+            if _has_tool_calls(state):
+                print("[route_after_planner] advisor + tool_calls -> tools")
+                return "tools"
+            print("[route_after_planner] advisor no tool_calls -> advisor")
+            return "advisor"
         if _has_tool_calls(state):
+            print("[route_after_planner] general + tool_calls -> tools")
             return "tools"
+        print("[route_after_planner] general no tool_calls -> generator")
         return "generator"
 
     def __route_after_tools(self, state: AppState) -> str:
-        """Routing sau ToolNode: chọn generator thường."""
+        """Routing sau ToolNode: quay lại advisor nếu đang ở mode advisor, ngược lại dùng generator."""
+        if state.get("route") == "advisor":
+            print("[route_after_tools] route=advisor -> advisor")
+            return "advisor"
+        print("[route_after_tools] route=general -> generator")
         return "generator"
 
     def __init_Graph(self):
@@ -331,14 +304,12 @@ class LLMService():
         graph_builder.add_node("tools", tools)
         graph_builder.add_node("generator", self.__generator)
         graph_builder.add_node("advisor", self.__advisor)
-        graph_builder.add_node("generator_advisor", self.__generator_advisor)
 
         graph_builder.add_edge(START, "guardrail")
         graph_builder.add_conditional_edges("guardrail", self.__route_after_guardrail,
             {
                 "planner": "planner",
                 "generator": "generator",
-                "advisor": "advisor",
             },
         )
         graph_builder.add_conditional_edges(
@@ -346,6 +317,7 @@ class LLMService():
             self.__route_after_planner,
             {
                 "tools": "tools",
+                "advisor": "advisor",
                 "generator": "generator",
             },
         )
@@ -353,11 +325,11 @@ class LLMService():
             "tools",
             self.__route_after_tools,
             {
+                "advisor": "advisor",
                 "generator": "generator",
             },
         )
-        graph_builder.add_edge("advisor", "generator_advisor")
-        graph_builder.add_edge("generator_advisor", END)
+        graph_builder.add_edge("advisor", END)
         graph_builder.add_edge("generator", END)
         return graph_builder.compile(checkpointer=self.memory)
 

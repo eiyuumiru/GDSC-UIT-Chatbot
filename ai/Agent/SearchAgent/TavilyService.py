@@ -17,8 +17,6 @@ class TavilyService:
         "thuvien.uit.edu.vn",
         "lib.uit.edu.vn",
         "diemthi.tuyensinh247.com",
-        "cellphones.com.vn",
-        "fptshop.com.vn",
     ]
 
     def __init__(self):
