@@ -13,7 +13,6 @@ from .RetrieverService.RetrieverService import (
 )
 from .GroqService.GroqBase import GroqBase
 from .config.Groq import GroqLLMConfig as cfg
-from litellm.utils import trim_messages
 from .Prompt import (
     ANSWER_PROMPT,
     SMALL_TALK_ANSWER_PROMPT,
@@ -158,8 +157,6 @@ class LLMService():
                 
         if route == "small_talk":
             messages = SMALL_TALK_ANSWER_PROMPT.format_messages(question=question)
-            trimmed = trim_messages(messages=messages, model=self.model)
-            messages = trimmed[0] if isinstance(trimmed, tuple) else trimmed
             out = self.llm.invoke(messages)
             return {"messages": [out]}
         
@@ -179,8 +176,7 @@ class LLMService():
         # print(f"📦 Contexts: {len(contexts)} chunks, {contexts_tokens:,} tokens")
         # print(f"📜 History: {len(history)} characters")
         # print(f"History: {history}")
-        trimmed = trim_messages(messages=messages, model=self.model)
-        messages = trimmed[0] if isinstance(trimmed, tuple) else trimmed
+
         out = self.llm.invoke(messages)
 
         # input_tokens = token_counter(model=self.model, messages=messages)
