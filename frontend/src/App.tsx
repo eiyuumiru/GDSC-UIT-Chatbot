@@ -5,7 +5,6 @@ import {
   AuroraBackground,
   Conversation,
   ConversationContent,
-  ConversationScrollButton,
   ThemeSwitcher,
   ErrorPopup,
 } from "@/components/ui";
