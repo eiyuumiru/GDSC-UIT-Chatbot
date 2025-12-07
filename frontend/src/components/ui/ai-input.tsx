@@ -67,7 +67,7 @@ export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
               "backdrop-blur-md",
               "placeholder:text-black/50 dark:placeholder:text-white/50",
               "border-none",
-              "text-black dark:text-white text-wrap",
+              "text-black dark:text-white text-wrap text-base",
               "overflow-y-auto resize-none",
               "focus-visible:ring-0 focus-visible:ring-offset-0 !focus-visible:ring-0 !focus-visible:ring-offset-0 !border-none",
               "transition-[height] duration-100 ease-out",

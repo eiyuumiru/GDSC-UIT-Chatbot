@@ -98,8 +98,9 @@ export function ConversationMessage({
   return (
     <Message
       from={isAssistant ? "assistant" : "user"}
-      className={`flex flex-col gap-2 ${isAssistant ? "items-start" : "items-end"
-        }`}
+      className={`flex flex-col gap-2 ${
+        isAssistant ? "items-start" : "items-end"
+      }`}
     >
       <MessageAvatar src={avatarSrc} name={avatarName} />
       <MessageContent>
@@ -121,10 +122,11 @@ export function ConversationMessage({
             disabled={assistantControls.retryDisabled}
           >
             <RefreshCcwIcon
-              className={`size-4 ${assistantControls.isRegenerating
-                ? "animate-spin text-foreground"
-                : ""
-                }`}
+              className={`size-4 ${
+                assistantControls.isRegenerating
+                  ? "animate-spin text-foreground"
+                  : ""
+              }`}
             />
           </Action>
           <Action
@@ -132,8 +134,8 @@ export function ConversationMessage({
             tooltip="Hữu ích"
             className={
               isLiked
-                ? "bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30 dark:bg-emerald-500/25 dark:text-emerald-100 dark:hover:bg-emerald-500/30"
-                : "hover:bg-emerald-500/10 dark:hover:bg-emerald-500/10"
+                ? "bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30 hover:text-emerald-600 dark:bg-emerald-500/25 dark:text-emerald-100 dark:hover:bg-emerald-500/30 dark:hover:text-emerald-100"
+                : ""
             }
             onClick={() => assistantControls.onFeedbackChange("like")}
           >
@@ -144,8 +146,8 @@ export function ConversationMessage({
             tooltip="Chưa ổn"
             className={
               isDisliked
-                ? "bg-red-500/20 text-red-600 hover:bg-red-500/30 dark:bg-red-500/25 dark:text-red-100 dark:hover:bg-red-500/35"
-                : "hover:bg-red-500/10 dark:hover:bg-red-500/10"
+                ? "bg-red-500/20 text-red-600 hover:bg-red-500/30 hover:text-red-600 dark:bg-red-500/25 dark:text-red-100 dark:hover:bg-red-500/35 dark:hover:text-red-100"
+                : ""
             }
             onClick={() => assistantControls.onFeedbackChange("dislike")}
           >

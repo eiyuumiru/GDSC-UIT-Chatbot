@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import 'abortcontroller-polyfill/dist/abortcontroller-polyfill-only';
 import {
   AIInput,
   AuroraBackground,
@@ -57,7 +58,7 @@ export default function App() {
       <ErrorPopup message={error} onClose={() => setError(null)} />
 
       {/* Toàn bộ ứng dụng chiếm toàn màn hình */}
-      <div className="relative flex flex-col h-screen w-full text-foreground overflow-hidden">
+      <div className="relative flex flex-col h-dvh w-dvw text-foreground overflow-hidden">
         {!hasUserMessage && (
           <div className="absolute right-4 top-4 z-10">
             <ThemeSwitcher
@@ -70,8 +71,8 @@ export default function App() {
 
         <main
           className={cn(
-            "flex flex-1 justify-center flex-col px-4 transition-all duration-500 sm:px-8 lg:px-16 min-h-0", // thêm min-h-0
-            hasUserMessage ? "gap-0 pt-8" : "gap-6 pb-36"
+            "flex flex-1 justify-center flex-col transition-all duration-500 min-h-0 overflow-hidden", // thêm min-h-0
+            hasUserMessage ? "gap-0 pt-8" : "gap-6 pb-20 sm:pb-28 px-4 sm:px-8 lg:px-16"
           )}
         >
           {!hasUserMessage && (
@@ -90,7 +91,7 @@ export default function App() {
 
           {hasUserMessage && (
             <section className="flex flex-col flex-1 w-full min-h-0 space-y-6">
-              <header className="flex flex-wrap items-center justify-between gap-4">
+              <header className="flex flex-wrap items-center justify-between gap-4 px-4 sm:px-8 lg:px-16">
                 <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                   Nhật ký hội thoại ·{" "}
                   <span className="text-base font-semibold text-foreground normal-case">
@@ -117,57 +118,54 @@ export default function App() {
               </header>
 
               {/* Vùng có thể cuộn */}
-              <div className="flex-1 w-full max-w-7xl overflow-y-auto mx-auto relative min-h-0">
-                <Conversation
-                  key={sessionId}
-                  className="h-full rounded-none border-none bg-transparent overflow-hidden custom-scrollbar"
-                >
-                  <ConversationContent className="flex-col gap-2 px-2 sm:px-4 pb-40">
-                    {messages.map((message) => (
-                      <ConversationMessage
-                        key={message.id}
-                        message={message}
-                        assistantControls={
-                          message.role === "assistant"
-                            ? {
-                                onRetry: () => handleRetry(message.id),
-                                onCopy: () =>
-                                  handleCopyResponse(message.content),
-                                onFeedbackChange: (value) =>
-                                  handleFeedbackToggle(message.id, value),
-                                feedbackValue:
-                                  messageFeedback[message.id] ?? null,
-                                isRegenerating:
-                                  regeneratingMessageId === message.id,
-                                retryDisabled: isSending,
-                                copyDisabled:
-                                  !message.content ||
-                                  regeneratingMessageId === message.id,
-                              }
-                            : undefined
-                        }
-                      />
-                    ))}
-
-                    {isSending && !regeneratingMessageId && (
-                      <AssistantTypingIndicator />
-                    )}
-                  </ConversationContent>
-
-                  {inputHeight > 0 && (
-                    <ConversationScrollButton
-                      style={{ bottom: `${inputHeight + 48}px`}}
+              <Conversation
+                key={sessionId}
+                className="flex-1 w-full max-w-7xl mx-auto rounded-none border-none bg-transparent overflow-hidden custom-scrollbar"
+              >
+                <ConversationContent className="flex-col gap-2 pb-40">
+                  {messages.map((message) => (
+                    <ConversationMessage
+                      key={message.id}
+                      message={message}
+                      assistantControls={
+                        message.role === "assistant"
+                          ? {
+                              onRetry: () => handleRetry(message.id),
+                              onCopy: () => handleCopyResponse(message.content),
+                              onFeedbackChange: (value) =>
+                                handleFeedbackToggle(message.id, value),
+                              feedbackValue:
+                                messageFeedback[message.id] ?? null,
+                              isRegenerating:
+                                regeneratingMessageId === message.id,
+                              retryDisabled: isSending,
+                              copyDisabled:
+                                !message.content ||
+                                regeneratingMessageId === message.id,
+                            }
+                          : undefined
+                      }
                     />
+                  ))}
+
+                  {isSending && !regeneratingMessageId && (
+                    <AssistantTypingIndicator />
                   )}
-                </Conversation>
-              </div>
+                </ConversationContent>
+
+                {inputHeight > 0 && (
+                  <ConversationScrollButton
+                    style={{ bottom: `${inputHeight + 48}px` }}
+                  />
+                )}
+              </Conversation>
             </section>
           )}
-          
+
           {/* Ô nhập cố định */}
           <div
             className={cn(
-              "flex flex-col w-full items-center gap-0 pb-2",
+              "flex flex-col w-full items-center gap-0 pb-2 px-4",
               "transition-all duration-700 ease-in-out",
               hasUserMessage ? "bottom-0 translate-y-0" : "top-1/2"
             )}
