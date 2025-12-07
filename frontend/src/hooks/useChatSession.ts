@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, useRef, useEffect } from "react";
-import { sendPrompt } from "@/lib/api";
+import { sendPrompt, resetSession } from "@/lib/api";
 import type { ChatMessage, AssistantFeedback } from "@/types/chat";
 import { createId } from "@/lib/chat-utils";
 
@@ -32,15 +32,24 @@ export const useChatSession = () => {
     return () => observer.disconnect();
   }, []);
 
-  const handleRestart = useCallback(() => {
-    setMessages([]);
-    setSessionId(createId());
-    setInputInstanceId(createId());
-    setError(null);
-    setShouldAnimateAnchor(false);
-    setMessageFeedback({});
-    setRegeneratingMessageId(null);
-  }, []);
+  const handleRestart = useCallback(async () => {
+    try {
+      const response = await resetSession(sessionId);
+      const nextSessionId = response.session_id || createId();
+
+      setMessages([]);
+      setSessionId(nextSessionId);
+      setInputInstanceId(createId());
+      setError(null);
+      setShouldAnimateAnchor(false);
+      setMessageFeedback({});
+      setRegeneratingMessageId(null);
+    } catch (err) {
+      const detail =
+        err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định.";
+      setError(detail);
+    }
+  }, [sessionId]);
 
   const hasUserMessage = useMemo(
     () => messages.some((message) => message.role === "user"),

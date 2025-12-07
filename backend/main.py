@@ -56,6 +56,14 @@ class ChatResponse(BaseModel):
     content: str
 
 
+class ResetRequest(BaseModel):
+    session_id: str = Field(..., min_length=1)
+
+
+class ResetResponse(BaseModel):
+    session_id: str
+
+
 app = FastAPI(title="UIT AI Chatbot", version="1.0.0")
 
 app.add_middleware(
@@ -91,6 +99,21 @@ async def chat(
         content = ""
 
     return ChatResponse(session_id=payload.session_id, content=str(content))
+
+
+@app.post("/chat/reset", response_model=ResetResponse)
+async def reset_chat(
+    payload: ResetRequest,
+    service: "LLMService" = Depends(get_llm_service),
+):
+    try:
+        await run_in_threadpool(service.reset_memory, payload.session_id)
+    except Exception as exc:
+        print(f"Error resetting chat session: {exc}")
+        raise HTTPException(status_code=500, detail="Internal Server Error") from exc
+
+    new_session_id = str(uuid4())
+    return ResetResponse(session_id=new_session_id)
 
 
 __all__ = ["app"]
