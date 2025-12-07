@@ -1,119 +1,94 @@
-# GDGoC-UIT-Chatbot Monorepo
+# AskUIT
 
-Generative AI chatbot for the UIT curriculum. The repository contains the Groq-powered LangGraph pipeline (`ai/`), the FastAPI transport layer (`backend/`), and a Vite + React + shadcn/tailwind client (`frontend/`).
+AskUIT is a UIT-focused chatbot powered by Groq + LangGraph. It retrieves knowledge from Qdrant (hybrid dense/sparse) and can search UIT domains via Tavily. The monorepo contains the AI pipeline (`ai/`), a FastAPI backend (`backend/`), and a Vite/React client (`frontend/`).
 
-## Repository layout
+## Architecture
+- Groq LLM via LiteLLM router (guardrail → planner → tools → generator/advisor).
+- Tool `retrieve`: Qdrant hybrid (FPT dense embedding + fastembed BM25 sparse) + FPT reranker.
+- Tool `tavily_search`: UIT domain-filtered web search for fresh news/policies.
+- FastAPI transport: `/health`, `/chat`, `/chat/reset`.
+- UI: Vite + React + shadcn/tailwind with theme switcher, copy/retry feedback, session restart.
 
-| Folder      | Purpose                                                                 |
-|-------------|-------------------------------------------------------------------------|
-| `ai/`       | Data loaders, semantic chunker, retrievers, Groq LangGraph pipeline.    |
-| `backend/`  | FastAPI surface that exposes health checks and the `/chat` endpoint.    |
-| `frontend/` | Vite React client with shadcn components and TailwindCSS styling.       |
+## Repository structure
+| Folder      | Description                                                           |
+|-------------|------------------------------------------------------------------------|
+| `ai/`       | LLMService, prompts, tools (`retrieve`, Tavily), index build scripts. |
+| `backend/`  | FastAPI app, request/response schemas, CORS.                          |
+| `frontend/` | Vite React UI (shadcn), chat hooks, API client.                       |
 
-## Requirements
+## Prerequisites
+- Python 3.11+
+- Node.js 18+ and `npm`
+- Qdrant cluster (Cloud/self-hosted) with API key
+- API keys: Groq, FPT embedding/reranker, Tavily
 
-- Python 3.11+ (install backend deps with `uv pip install -r requirements.txt`)
-- Node.js 18+ with `npm`
-- A Groq API key (`llama-3.3-70b-versatile` is used by default)
-- A running Qdrant cluster (Cloud or self-hosted) with an API key
-- An FPT AI Marketplace API key for the `Vietnamese_Embedding` model
-- `fastembed` runtime dependency (already in `requirements.txt`) to generate sparse vectors for hybrid search
-- (Optional) CUDA-capable GPU for accelerating embedding builds
+## Environment variables (root `.env`)
+```
+GROQ_API_KEY=...
+QDRANT_URL=https://your-qdrant
+QDRANT_API_KEY=...
+CORS_ALLOW_ORIGINS=http://localhost:5173
 
-## Backend API (FastAPI ↔ `ai`)
+# FPT Cloud (for both embed & rerank; rerank can reuse FPT_EMBEDDING_API_KEY)
+FPT_EMBEDDING_API_KEY=...
+FPT_RERANKER_API_KEY=...    # optional
 
-1. Install dependencies:
-   ```bash
-   uv pip install -r .\requirements.txt --index-strategy unsafe-best-match
-   ```
-2. Configure environment variables (e.g. `.env` at the repo root):
-   ```env
-   GROQ_API_KEY=your_key
-   QDRANT_URL=https://<your-qdrant-endpoint>
-   QDRANT_API_KEY=your_qdrant_api_key
-   QDRANT_COLLECTION=uit_edu
-   # QDRANT_PREFER_GRPC=true  # optional
-   FPT_EMBEDDING_API_KEY=your_fpt_marketplace_key
-   FPT_EMBEDDING_MODEL=Vietnamese_Embedding
-   FPT_RERANKER_MODEL=bge-reranker-v2-m3
-   ```
-3. Run the API:
-   ```bash
-   uvicorn backend.main:app --reload --port 8000
-   ```
+# Tavily web search
+TAVILY_API_KEY=...
+```
+Collection/vector names live in `ai/config/Qdrant.py` (defaults: collection `uit_edu_v2`, vectors `dense` / `sparse`).
 
-### HTTP surface
-
-| Method | Path     | Description                               |
-|--------|----------|-------------------------------------------|
-| GET    | `/health`| Liveness probe (`{"status": "ok"}`).      |
-| POST   | `/chat`  | Accepts a chat turn and streams to Groq.  |
-
-`POST /chat` expects:
-
-```json
-{
-  "message": "CS311 có bao nhiêu tín chỉ?",
-  "session_id": "uuid",
-  "tool_id": null,
-  "image_base64": null
-}
+## Run backend (FastAPI)
+```bash
+pip install -r requirements.txt
+uvicorn backend.main:app --reload --port 8000
 ```
 
-The FastAPI route instantiates `ai.LLMService`, runs the LangGraph agent inside a worker thread, and returns the most recent assistant message.
+### API surface
+- `GET /health` → `{"status": "ok"}`
+- `POST /chat`  
+  Body: `{ "message": "...", "session_id": "uuid?", "tool_id": null, "image_base64": null }`  
+  Returns: `{ "session_id": "...", "role": "assistant", "content": "..." }`
+- `POST /chat/reset`  
+  Body: `{ "session_id": "..." }` → new `session_id`
 
-## AI knowledge pipeline (`ai/`)
+### Processing flow
+`LLMService` runs guardrail (intent), planner (decide parallel tools), tool node (retrieve + tavily), then generator/advisor to craft the final reply.
 
-- Markdown sources live under `ai/dataset/`.
-- `ai/Splitters.py` performs Markdown-aware + semantic chunking and annotates metadata (course headers, section paths, etc.) before a max-size pass (850 char chunks, 120 overlap).
-- `ai/EmbeddingManager.py` calls the FPT AI Marketplace `Vietnamese_Embedding` API for dense vectors and wraps `fastembed.SparseTextEmbedding` (BM42) for sparse vectors. Long Markdown sections are automatically clipped to `FPT_EMBEDDING_MAX_CHARS` (default 120 000) before hitting the API so large tables do not trigger HTTP 400 errors.
-- `ai/Reranker.py` sends the candidate documents to FPT’s `bge-reranker-v2-m3` API, replacing the on-device HuggingFace cross-encoder. Tweak `FPT_RERANKER_*` env vars to change model, key, timeout, or max docs per call.
-- `ai/Vectors.py` uploads both dense (`dense`) and sparse (`sparse`) vectors into Qdrant, enabling first-class hybrid search inside the database. The collection schema is created automatically if it does not exist, UUID4 IDs are assigned per point, and upserts are chunked (`QDRANT_UPSERT_BATCH`) to avoid timeouts.
-- `ai/FullChain.py` wires the hybrid retriever (Qdrant hybrid + local term-hit filter), calls the cloud reranker, and exposes the retrieval LangGraph tool consumed by `ai/LLMService`.
+## RAG pipeline (`ai/`)
+- Dense embedding: FPT `openai/Vietnamese_Embedding` via LiteLLM (`FPT_EMBEDDING_API_KEY`).
+- Sparse embedding: fastembed BM25 (`Qdrant/bm25`).
+- Rerank: FPT `bge-reranker-v2-m3` (`FPT_RERANKER_API_KEY` or embedding key).
+- Qdrant hybrid search + rerank top-N, returning chunks to the LLM.
 
-### Rebuilding the vector store
-
-Whenever the dataset under `ai/dataset/` changes, rebuild the Qdrant collection:
-
-```python
-from dotenv import load_dotenv
-from ai.FullChain import build_index
-
-load_dotenv()
-build_index()
+### Rebuild the Qdrant index
+1) Place JSON data under `ai/dataset/CS311` (can fetch from public bucket `cs311_uswest` via `ai/GoogleCloud/getBucket.py`).  
+2) Set Qdrant + FPT env vars as above.  
+3) Run:
+```bash
+python ai/QdrantService/buildIndex.py
 ```
+The script (re)upserts all JSON into Qdrant with dense + sparse vectors. Note: the cleaning helper (`cleanJSON.py`) uses `deep_translator` if you need prefix translation.
 
-The helper loads `.env`, runs the Markdown loader/splitter, and pushes both dense + sparse vectors to Qdrant. Make sure the following variables are available in your environment before running the script:
+## Frontend (Vite + React + shadcn)
+```bash
+cd frontend
+npm install
+```
+Optional API override:
+```
+VITE_API_BASE_URL=http://localhost:8000
+```
+Scripts:
+```
+npm run dev      # Vite dev server (5173)
+npm run build    # type-check + production build
+npm run preview  # preview build
+npm run lint     # tsc --noEmit
+```
+Main UI in `frontend/src/App.tsx`, API client in `frontend/src/lib/api.ts`.
 
-- `FPT_EMBEDDING_API_KEY`, `FPT_EMBEDDING_MODEL`, `FPT_EMBEDDING_BASE_URL` (if you override the default)
-- `QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_COLLECTION`
-- `QDRANT_VECTOR_NAME` / `QDRANT_SPARSE_VECTOR_NAME` if you do not want the defaults `dense` / `sparse`
-
-`RetrieverService` automatically connects to the collection on startup, so a successful indexing step is all that is needed for the backend to serve queries with the new data.
-
-## Frontend (React + Vite + shadcn + TailwindCSS 3)
-
-1. Install dependencies:
-   ```bash
-   cd frontend
-   npm install
-   ```
-2. Create `frontend/.env` if you need a non-default API URL:
-   ```env
-   VITE_API_BASE_URL=http://localhost:8000
-   ```
-3. Available scripts:
-   ```bash
-   npm run dev      # start Vite dev server on :5173
-   npm run build    # type-check + production build
-   npm run preview  # preview the production build
-   npm run lint     # TypeScript-only lint pass
-   ```
-
-The UI lives in `frontend/src/components/ui`, reusing shadcn primitives (see `components.json`). `App.tsx` orchestrates the chat experience, talking to `frontend/src/lib/api.ts`, which forwards payloads to `POST /chat`.
-
-## Connecting the layers
-
-- The frontend sends JSON payloads via `sendPrompt` → `POST /chat`.
-- FastAPI hands control to `ai.LLMService`, which uses Groq + LangGraph tools over the UIT curriculum embeddings.
-- Update `VITE_API_BASE_URL` and `CORS_ALLOW_ORIGINS` together when deploying to different hosts to avoid browser preflight issues.
+## Deploy notes
+- Keep `VITE_API_BASE_URL` and `CORS_ALLOW_ORIGINS` in sync when changing host/port.
+- `buildIndex.py` will overwrite the Qdrant collection; use with care in production.
+- Without a Tavily key, web search tool fails and planner falls back to retrieve-only.
