@@ -71,8 +71,10 @@ export default function App() {
 
         <main
           className={cn(
-            "flex flex-1 justify-center flex-col transition-all duration-500 min-h-0 overflow-hidden", // thêm min-h-0
-            hasUserMessage ? "gap-0 pt-8" : "gap-6 pb-20 sm:pb-28 px-4 sm:px-8 lg:px-16"
+            "flex flex-1 flex-col transition-all duration-500 min-h-0 overflow-hidden",
+            hasUserMessage
+              ? "items-stretch justify-start gap-0 pt-8"
+              : "items-center justify-center gap-4 px-4 sm:px-8 lg:px-16 py-12"
           )}
         >
           {!hasUserMessage && (
@@ -91,14 +93,14 @@ export default function App() {
 
           {hasUserMessage && (
             <section className="flex flex-col flex-1 w-full min-h-0 space-y-6">
-              <header className="flex flex-wrap items-center justify-between gap-4 px-4 sm:px-8 lg:px-16">
+              <header className="flex flex-col items-center gap-3 px-4 text-center sm:flex-row sm:items-center sm:justify-between sm:text-left sm:px-8 lg:px-16">
                 <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                   Nhật ký hội thoại ·{" "}
                   <span className="text-base font-semibold text-foreground normal-case">
                     Phiên #{sessionId.slice(0, 8)}
                   </span>
                 </p>
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center justify-center gap-3 sm:justify-end">
                   <span className="text-xs text-muted-foreground">
                     {messages.length} tin nhắn
                   </span>
@@ -120,9 +122,9 @@ export default function App() {
               {/* Vùng có thể cuộn */}
               <Conversation
                 key={sessionId}
-                className="flex-1 w-full max-w-7xl mx-auto rounded-none border-none bg-transparent overflow-hidden custom-scrollbar"
+                className="flex-1 w-full rounded-none border-none bg-transparent custom-scrollbar"
               >
-                <ConversationContent className="flex-col gap-2 pb-40">
+                <ConversationContent className="flex-col gap-2 pb-40 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-10">
                   {messages.map((message) => (
                     <ConversationMessage
                       key={message.id}
@@ -153,11 +155,6 @@ export default function App() {
                   )}
                 </ConversationContent>
 
-                {inputHeight > 0 && (
-                  <ConversationScrollButton
-                    style={{ bottom: `${inputHeight + 48}px` }}
-                  />
-                )}
               </Conversation>
             </section>
           )}
@@ -166,6 +163,7 @@ export default function App() {
           <div
             className={cn(
               "flex flex-col w-full items-center gap-0 pb-2 px-4",
+              hasUserMessage ? "mt-4 sm:mt-6" : "mt-0",
               "transition-all duration-700 ease-in-out",
               hasUserMessage ? "bottom-0 translate-y-0" : "top-1/2"
             )}
@@ -180,7 +178,7 @@ export default function App() {
               buttonAlignment={hasUserMessage ? "bottom" : "top"}
             />
             <p className="text-center text-[11px] pt-2 font-medium text-muted-foreground/60 select-none">
-              UIT Hỏi&Đáp có thể mắc lỗi, hãy xác minh các thông tin quan trọng.
+              UIT Hỏi & Đáp có thể mắc lỗi, hãy xác minh các thông tin quan trọng.
             </p>
           </div>
         </main>
