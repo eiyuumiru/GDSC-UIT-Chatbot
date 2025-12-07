@@ -57,7 +57,7 @@ export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
       buttonAlignment === "top" ? "top-3.5" : "bottom-3.5";
 
     return (
-      <div ref={ref} className={cn("w-full py-2", className)}>
+      <div ref={ref} className={cn("w-full", className)}>
         <div className="relative max-w-xl w-full mx-auto">
           <Textarea
             id={id}

@@ -70,8 +70,8 @@ export default function App() {
 
         <main
           className={cn(
-            "flex flex-1 flex-col px-4 transition-all duration-500 sm:px-8 lg:px-16 min-h-0", // thêm min-h-0
-            hasUserMessage ? "gap-10 py-8" : "justify-center gap-2 pb-36"
+            "flex flex-1 justify-center flex-col px-4 transition-all duration-500 sm:px-8 lg:px-16 min-h-0", // thêm min-h-0
+            hasUserMessage ? "gap-0 pt-8" : "gap-6 pb-36"
           )}
         >
           {!hasUserMessage && (
@@ -117,7 +117,7 @@ export default function App() {
               </header>
 
               {/* Vùng có thể cuộn */}
-              <div className="flex-1 w-full max-w-7xl overflow-y-auto mx-auto relative min-h-0 pb-16">
+              <div className="flex-1 w-full max-w-7xl overflow-y-auto mx-auto relative min-h-0">
                 <Conversation
                   key={sessionId}
                   className="h-full rounded-none border-none bg-transparent overflow-hidden custom-scrollbar"
@@ -156,21 +156,20 @@ export default function App() {
 
                   {inputHeight > 0 && (
                     <ConversationScrollButton
-                      style={{ bottom: `${inputHeight + 48}px` }}
+                      style={{ bottom: `${inputHeight + 48}px`}}
                     />
                   )}
                 </Conversation>
               </div>
             </section>
           )}
-
+          
           {/* Ô nhập cố định */}
           <div
             className={cn(
-              "fixed left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-4",
-              "flex flex-col items-center gap-1",
+              "flex flex-col w-full items-center gap-0 pb-2",
               "transition-all duration-700 ease-in-out",
-              hasUserMessage ? "bottom-2 translate-y-0" : "top-1/2"
+              hasUserMessage ? "bottom-0 translate-y-0" : "top-1/2"
             )}
           >
             <AIInput
@@ -182,7 +181,7 @@ export default function App() {
               isGenerating={isSending}
               buttonAlignment={hasUserMessage ? "bottom" : "top"}
             />
-            <p className="text-center bottom-1 text-[11px] font-medium text-muted-foreground/60 select-none">
+            <p className="text-center text-[11px] pt-2 font-medium text-muted-foreground/60 select-none">
               UIT Hỏi&Đáp có thể mắc lỗi, hãy xác minh các thông tin quan trọng.
             </p>
           </div>
