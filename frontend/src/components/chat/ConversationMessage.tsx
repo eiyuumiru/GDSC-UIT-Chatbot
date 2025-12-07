@@ -14,9 +14,11 @@ import {
   RefreshCcwIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
+  PencilIcon,
 } from "lucide-react";
-import type { ChatMessage, AssistantControls } from "@/types/chat";
+import type { ChatMessage, AssistantControls, UserControls } from "@/types/chat";
 import { ASSISTANT_NAME } from "@/components/constants/text";
+import { cn } from "@/lib/utils";
 import humanAvatarSrc from "../../../icons/human.png";
 import robotAvatarSrc from "../../../icons/robot.png";
 
@@ -37,9 +39,11 @@ function AssistantStatusText({ children }: { children: string }) {
 export function ConversationMessage({
   message,
   assistantControls,
+  userControls,
 }: {
   message: ChatMessage;
   assistantControls?: AssistantControls;
+  userControls?: UserControls;
 }) {
   const [isCopied, setIsCopied] = useState(false);
   const isAssistant = message.role === "assistant";
@@ -50,7 +54,11 @@ export function ConversationMessage({
   const shouldShowShimmer = isAssistant && assistantControls?.isRegenerating;
 
   const handleCopy = () => {
-    assistantControls?.onCopy();
+    if (isAssistant) {
+      assistantControls?.onCopy();
+    } else {
+      userControls?.onCopy();
+    }
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 3000);
   };
@@ -132,11 +140,11 @@ export function ConversationMessage({
           <Action
             label="Hữu ích"
             tooltip="Hữu ích"
-            className={
-              isLiked
-                ? "bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30 hover:text-emerald-600 dark:bg-emerald-500/25 dark:text-emerald-100 dark:hover:bg-emerald-500/30 dark:hover:text-emerald-100"
-                : ""
-            }
+            className={cn(
+              "hover:bg-foreground/10",
+              isLiked &&
+                "bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30 hover:text-emerald-600 dark:bg-emerald-500/25 dark:text-emerald-100 dark:hover:bg-emerald-500/30 dark:hover:text-emerald-100"
+            )}
             onClick={() => assistantControls.onFeedbackChange("like")}
           >
             <ThumbsUpIcon className="size-4" />
@@ -144,11 +152,11 @@ export function ConversationMessage({
           <Action
             label="Chưa ổn"
             tooltip="Chưa ổn"
-            className={
-              isDisliked
-                ? "bg-red-500/20 text-red-600 hover:bg-red-500/30 hover:text-red-600 dark:bg-red-500/25 dark:text-red-100 dark:hover:bg-red-500/35 dark:hover:text-red-100"
-                : ""
-            }
+            className={cn(
+              "hover:bg-foreground/10",
+              isDisliked &&
+                "bg-red-500/20 text-red-600 hover:bg-red-500/30 hover:text-red-600 dark:bg-red-500/25 dark:text-red-100 dark:hover:bg-red-500/35 dark:hover:text-red-100"
+            )}
             onClick={() => assistantControls.onFeedbackChange("dislike")}
           >
             <ThumbsDownIcon className="size-4" />
@@ -165,6 +173,32 @@ export function ConversationMessage({
             ) : (
               <CopyIcon className="size-4" />
             )}
+          </Action>
+        </Actions>
+      )}
+      {!isAssistant && userControls && (
+        <Actions className="mt-1 justify-end">
+          <Action
+            label={isCopied ? "Đã sao chép" : "Sao chép"}
+            tooltip={isCopied ? "Đã sao chép" : "Sao chép"}
+            onClick={handleCopy}
+            disabled={userControls.copyDisabled}
+            className="hover:bg-primary/20 text-primary-foreground/80"
+          >
+            {isCopied ? (
+              <CheckIcon className="size-4" />
+            ) : (
+              <CopyIcon className="size-4" />
+            )}
+          </Action>
+          <Action
+            label="Chỉnh sửa"
+            tooltip="Chỉnh sửa và gửi lại"
+            onClick={userControls.onEdit}
+            disabled={userControls.editDisabled}
+            className="hover:bg-primary/20 text-primary-foreground/80"
+          >
+            <PencilIcon className="size-4" />
           </Action>
         </Actions>
       )}

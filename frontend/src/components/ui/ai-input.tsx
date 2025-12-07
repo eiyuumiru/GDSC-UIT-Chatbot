@@ -1,13 +1,13 @@
 "use client";
 
 import { CornerRightUp, Square } from "lucide-react";
-import { useState, forwardRef } from "react";
+import { useState, forwardRef, useEffect } from "react";
 
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { useAutoResizeTextarea } from "@/components/hooks/use-auto-resize-textarea";
 
-interface AIInputProps {
+export interface AIInputProps {
   id?: string;
   placeholder?: string;
   minHeight?: number;
@@ -17,6 +17,8 @@ interface AIInputProps {
   isGenerating?: boolean;
   className?: string;
   buttonAlignment?: "top" | "bottom";
+  value?: string;
+  onValueChange?: (value: string) => void;
 }
 
 export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
@@ -31,26 +33,41 @@ export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
       isGenerating = false,
       className,
       buttonAlignment = "bottom",
+      value,
+      onValueChange,
     },
     ref
   ) {
-    const [inputValue, setInputValue] = useState("");
+    const [inputValue, setInputValue] = useState(value ?? "");
+    const isControlled = value !== undefined;
+    const currentValue = isControlled ? value : inputValue;
 
-    // 1. Truyền inputValue vào hook để hook tự xử lý
+    useEffect(() => {
+      if (isControlled) return;
+      setInputValue(value ?? "");
+    }, [value, isControlled]);
+
     const { textareaRef } = useAutoResizeTextarea({
       minHeight,
       maxHeight,
-      value: inputValue,
+      value: currentValue,
     });
+
+    const setValue = (next: string) => {
+      if (!isControlled) {
+        setInputValue(next);
+      }
+      onValueChange?.(next);
+    };
 
     const handleSubmit = () => {
       if (isGenerating) {
         onStop?.();
         return;
       }
-      if (!inputValue.trim()) return;
-      onSubmit?.(inputValue);
-      setInputValue("");
+      if (!currentValue.trim()) return;
+      onSubmit?.(currentValue);
+      setValue("");
     };
 
     const buttonPositionClass =
@@ -80,9 +97,9 @@ export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
             }}
             rows={1}
             ref={textareaRef}
-            value={inputValue}
+            value={currentValue}
             onChange={(e) => {
-              setInputValue(e.target.value);
+              setValue(e.target.value);
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
@@ -103,7 +120,7 @@ export const AIInput = forwardRef<HTMLDivElement, AIInputProps>(
               "absolute right-3",
               "rounded-xl bg-black/5 dark:bg-white/5 transition-all duration-200 w-6 h-6 flex items-center justify-center",
               buttonPositionClass,
-              inputValue || isGenerating
+              currentValue || isGenerating
                 ? "opacity-100 scale-100"
                 : "opacity-0 scale-95 pointer-events-none"
             )}

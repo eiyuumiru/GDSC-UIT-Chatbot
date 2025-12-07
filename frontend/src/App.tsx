@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import 'abortcontroller-polyfill/dist/abortcontroller-polyfill-only';
 import {
   AIInput,
@@ -41,16 +41,44 @@ export default function App() {
     handleRetry,
     setError,
   } = useChatSession();
+  const [draftMessage, setDraftMessage] = useState("");
 
   const handleStop = () => {
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
   };
 
+  const focusInput = useCallback(() => {
+    const inputElement = document.getElementById("ai-input") as
+      | HTMLTextAreaElement
+      | null;
+    if (!inputElement) return;
+    const length = inputElement.value.length;
+    inputElement.focus();
+    inputElement.setSelectionRange(length, length);
+  }, []);
+
   const handleMessageSubmitWithAbort = (message: string) => {
     abortControllerRef.current = new AbortController();
-    handleMessageSubmit(message, abortControllerRef.current.signal);
+    handleMessageSubmit(message, abortControllerRef.current.signal).finally(() => {
+      setDraftMessage("");
+    });
   };
+
+  const handleRestartWithReset = useCallback(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setDraftMessage("");
+    handleRestart();
+  }, [handleRestart]);
+
+  const handleEditQuestion = useCallback(
+    (content: string) => {
+      setDraftMessage(content);
+      requestAnimationFrame(focusInput);
+    },
+    [focusInput]
+  );
 
   return (
     <AuroraBackground className="bg-transparent text-foreground items-stretch justify-start">
@@ -105,7 +133,7 @@ export default function App() {
                   </span>
                   <button
                     type="button"
-                    onClick={handleRestart}
+                    onClick={handleRestartWithReset}
                     className="rounded-full bg-foreground/10 px-4 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-foreground/20"
                   >
                     Bắt đầu lại
@@ -128,6 +156,15 @@ export default function App() {
                     <ConversationMessage
                       key={message.id}
                       message={message}
+                      userControls={
+                        message.role === "user"
+                          ? {
+                              onCopy: () => handleCopyResponse(message.content),
+                              onEdit: () => handleEditQuestion(message.content),
+                              copyDisabled: !message.content,
+                            }
+                          : undefined
+                      }
                       assistantControls={
                         message.role === "assistant"
                           ? {
@@ -175,6 +212,8 @@ export default function App() {
               onStop={handleStop}
               isGenerating={isSending}
               buttonAlignment={hasUserMessage ? "bottom" : "top"}
+              value={draftMessage}
+              onValueChange={setDraftMessage}
             />
             <p className="text-center text-[11px] pt-2 font-medium text-muted-foreground/60 select-none">
               UIT Hỏi & Đáp có thể mắc lỗi, hãy xác minh các thông tin quan trọng.

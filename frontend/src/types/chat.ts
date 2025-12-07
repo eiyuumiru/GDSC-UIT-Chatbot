@@ -18,3 +18,10 @@ export type AssistantControls = {
   retryDisabled: boolean;
   copyDisabled: boolean;
 };
+
+export type UserControls = {
+  onCopy: () => void;
+  onEdit: () => void;
+  copyDisabled?: boolean;
+  editDisabled?: boolean;
+};
