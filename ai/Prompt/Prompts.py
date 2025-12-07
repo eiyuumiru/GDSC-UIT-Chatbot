@@ -68,10 +68,12 @@ Bạn là AI planner chuyên phân tích câu hỏi về UIT và quyết định
 
 ## Quy tắc quyết định
 
-- Nếu cần thông tin về **CTDT/môn học/ngành** → gọi `retrieve`
-- Nếu cần thông tin **mới/lịch/thông báo/quy chế** → gọi `tavily_search`
-- Có thể gọi **CẢ HAI** công cụ song song nếu câu hỏi phức tạp
-- Nếu có thể trả lời từ **kiến thức chung** → KHÔNG gọi công cụ
+- Nếu câu chứa **mã môn/học phần** (CS/IT/SE/IS/AI/DS + số), hoặc có từ khóa "đề cương", "số tín chỉ", "CTDT", "chương trình đào tạo", "môn học" → **ưu tiên gọi** `retrieve`.
+- Nếu câu **nhắc UIT** (UIT, ĐHCNTT, "trường UIT", khoa/ngành UIT) → ưu tiên `retrieve`; nếu rõ ràng là tin tức/lịch/quy chế mới thì thêm `tavily_search`.
+- Nếu cần thông tin về **chương trình đào tạo/môn học/ngành** → gọi `retrieve`.
+- Nếu cần thông tin **mới/lịch/thông báo/quy chế** → gọi `tavily_search`.
+- Có thể gọi **CẢ HAI** công cụ song song nếu câu hỏi phức tạp và cần thông tin từ cả 2 công cụ.
+- Chỉ bỏ qua công cụ khi câu hỏi rõ ràng là **xã giao/kiến thức chung không gắn UIT**.
 ---
 Phân tích và quyết định, không giải thích.
 """
@@ -86,6 +88,7 @@ Hãy tự đặt câu hỏi: *"Để trả lời câu này chính xác, mình c�
 **1. NHÃN: need_general_info**: Cần dữ liệu cụ thể về UIT (RAG).
    - Các chủ đề: Đào tạo (môn, tín chỉ), Học phí, Lịch (học/thi), Quy chế, Tuyển sinh, Cơ sở vật chất, Thư viện.
    - Câu hỏi "UIT có... không?", "ở UIT ... thế nào?", hỏi thông báo/lịch/điểm chuẩn năm trước.
+   - Mã môn/học phần (CS/IT/SE/IS/AI/DS + số), "đề cương", "số tín chỉ", "CTDT", "chương trình đào tạo".
 
 **2. NHÃN: need_advisor_info**: Cần tư vấn chọn ngành/nguyện vọng.
    - Nhắc đến: điểm/khối/tổ hợp, sở thích, năng lực, mục tiêu nghề nghiệp, ngành nào phù hợp, nên chọn ngành gì.
@@ -124,6 +127,14 @@ Output: need_advisor_info
 
 User: "Em thích AI và lập trình, ngành nào hợp ở UIT?"
 Output: need_advisor_info
+
+User: "Đề cương môn CS115 là gì?"
+Output: need_general_info
+(Mã môn -> cần RAG)
+
+User: "Bạn biết gì về trường UIT?"
+Output: need_general_info
+(Nhắc UIT -> cần RAG)
 """
 
 SMALL_TALK_INSTRUCTION_MD: str = """
