@@ -183,7 +183,7 @@ export function ConversationMessage({
             tooltip={isCopied ? "Đã sao chép" : "Sao chép"}
             onClick={handleCopy}
             disabled={userControls.copyDisabled}
-            className="hover:bg-primary/20 text-primary-foreground/80"
+            className="hover:bg-foreground/10"
           >
             {isCopied ? (
               <CheckIcon className="size-4" />
@@ -196,7 +196,7 @@ export function ConversationMessage({
             tooltip="Chỉnh sửa và gửi lại"
             onClick={userControls.onEdit}
             disabled={userControls.editDisabled}
-            className="hover:bg-primary/20 text-primary-foreground/80"
+            className="hover:bg-foreground/10"
           >
             <PencilIcon className="size-4" />
           </Action>
