@@ -35,13 +35,8 @@ def _parse_allowed_origins() -> list[str]:
 @lru_cache(maxsize=1)
 def get_llm_service() -> "LLMService":
     from ai.LLMService import LLMService as _LLMService
-
-    groq_api_key = os.getenv("GROQ_API_KEY")
-    if not groq_api_key:
-        raise RuntimeError("Missing GROQ_API_KEY environment variable.")
-    return _LLMService(
-        groq_api_key=groq_api_key,
-    )
+    # API keys are managed by KeyManager from GROQ_API_KEYS env
+    return _LLMService()
 
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1)

@@ -85,7 +85,6 @@ def _has_tool_calls(state: AppState) -> bool:
 class LLMService():
     def __init__(
         self,
-        groq_api_key: str,
         model: str = cfg.DEFAULT_MODEL_NAME,
         temperature: float = cfg.DEFAULT_TEMPERATURE,
         timeout: float = cfg.DEFAULT_TIMEOUT,
@@ -94,20 +93,83 @@ class LLMService():
     ):
         super().__init__()
         self.model = model
-        groq_base = GroqBase()
-        self.llm = groq_base.create_llm(
-            api_key=groq_api_key,
-            model=model,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            timeout=timeout,
-        )
+        self._temperature = temperature
+        self._max_tokens = max_tokens
+        self._timeout = timeout
+        self._groq_base = GroqBase()
+        self._llm = None
+        self._current_key = None
+        self._refresh_llm()
         self.memory = self.__init_Memory()
         self._retriever_service = RetrieverService(**(retriever_config or {}))
         self._search_agent_service = TavilyService()
         self._tavily_tool = make_tavily_tool(self._search_agent_service)
         self._retrieve_tool = make_retrieve_tool(self._retriever_service)
         self.graph = self.__init_Graph()
+    
+    def _refresh_llm(self):
+        """Create new LLM instance with current key from KeyManager."""
+        from .GroqService.KeyManager import key_manager
+        new_key = key_manager.get_current_key()
+        if new_key != self._current_key:
+            self._current_key = new_key
+            self._llm = self._groq_base.create_llm(
+                model=self.model,
+                temperature=self._temperature,
+                max_tokens=self._max_tokens,
+                timeout=self._timeout,
+            )
+            print(f"[LLMService] Refreshed LLM with key {new_key[:10]}...")
+    
+    @property
+    def llm(self):
+        """Get LLM, refreshing if key has changed."""
+        from .GroqService.KeyManager import key_manager
+        if key_manager.get_current_key() != self._current_key:
+            self._refresh_llm()
+        return self._llm
+    
+    def _safe_invoke(self, messages, max_retries: int = 3):
+        """Invoke LLM with automatic key rotation on failure."""
+        from .GroqService.KeyManager import key_manager
+        import re
+        
+        for attempt in range(max_retries):
+            try:
+                return self.llm.invoke(messages)
+            except Exception as e:
+                error_str = str(e).lower()
+                error_original = str(e)
+                
+                # Check for key-related errors
+                is_key_error = (
+                    "401" in error_original or
+                    "403" in error_original or
+                    "invalid" in error_str and ("key" in error_str or "api" in error_str) or
+                    "unauthorized" in error_str
+                )
+                
+                # Check for rate limit
+                is_rate_limit = "429" in error_original or ("rate" in error_str and "limit" in error_str)
+                
+                if is_key_error:
+                    print(f"[LLMService] Key error on attempt {attempt + 1}: {error_original[:80]}...")
+                    key_manager.mark_invalid()
+                    self._refresh_llm()
+                elif is_rate_limit:
+                    retry_after = 60
+                    match = re.search(r"retry.?after[:\s]+(\d+)", error_original, re.IGNORECASE)
+                    if match:
+                        retry_after = int(match.group(1))
+                    print(f"[LLMService] Rate limit on attempt {attempt + 1}, cooldown {retry_after}s")
+                    key_manager.mark_cooldown(retry_after)
+                    self._refresh_llm()
+                else:
+                    # Non-key error, re-raise
+                    raise
+                
+                if attempt == max_retries - 1:
+                    raise  # Last attempt, re-raise
 
     def __init_Memory(self):
         return MemorySaver()
@@ -120,7 +182,7 @@ class LLMService():
             user_query=question,
             history=history or "(trống)",
         )
-        response = self.llm.invoke(messages)
+        response = self._safe_invoke(messages)
         classification = str(response.content or "").strip().upper()
         if "NEED_ADVISOR_INFO" in classification:
             print("[guardrail] route=advisor")
@@ -156,7 +218,7 @@ class LLMService():
                 
         if route == "small_talk":
             messages = SMALL_TALK_ANSWER_PROMPT.format_messages(question=question)
-            out = self.llm.invoke(messages)
+            out = self._safe_invoke(messages)
             return {"messages": [out]}
         
         # RAG flow: Sử dụng context từ tools và 2 cặp hội thoại gần nhất
@@ -176,7 +238,7 @@ class LLMService():
         # print(f"📜 History: {len(history)} characters")
         # print(f"History: {history}")
 
-        out = self.llm.invoke(messages)
+        out = self._safe_invoke(messages)
 
         # input_tokens = token_counter(model=self.model, messages=messages)
         # output_tokens = token_counter(model=self.model, text=str(out.content or ""))
@@ -198,7 +260,7 @@ class LLMService():
             question=question,
             contexts=context_text_safe or "Không có dữ liệu context.",
         )
-        advisor_raw = self.llm.invoke(advisor_messages)
+        advisor_raw = self._safe_invoke(advisor_messages)
 
         def _as_list(value: Any) -> List[str]:
             if isinstance(value, list):
@@ -234,7 +296,7 @@ class LLMService():
             next_steps=_safe_text("\n".join(next_steps) if next_steps else ""),
             major_unavailable=str(major_unavailable),
         )
-        final_out = self.llm.invoke(render_messages)
+        final_out = self._safe_invoke(render_messages)
 
         return {"messages": [final_out]}
 
